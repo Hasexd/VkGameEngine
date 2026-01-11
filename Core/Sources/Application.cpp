@@ -10,7 +10,9 @@ namespace
 
 namespace Core
 {
-	Application::Application(const std::string& title, u32 width, u32 height)
+	Application::Application(const std::string& title, u32 width, u32 height) :
+		m_Window(nullptr, glfwDestroyWindow),
+		m_Renderer(std::make_unique<Renderer>())
 	{
 		glfwSetErrorCallback(GLFWErrorCallback);
 
@@ -24,17 +26,33 @@ namespace Core
 
 		LOG_INFO("GLFW initialized successfully.");
 
-		m_Window = Window(title, width, height);
+		if (!glfwVulkanSupported())
+		{
+			LOG_CRITICAL("Vulkan is not supported on this system.");
+			return;
+		}
+
+		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+		m_Window.reset(glfwCreateWindow(static_cast<int>(width), static_cast<int>(height), title.c_str(), nullptr, nullptr));
+
+		ASSERT(m_Window);
+
+		m_Renderer->Init(m_Window.get());
+	}
+
+	Application::~Application()
+	{
+		m_Window.reset();
+		glfwTerminate();
 	}
 
 	void Application::Run()
 	{
-		while (!glfwWindowShouldClose(m_Window.GetNativeWindow()))
+		while (!glfwWindowShouldClose(m_Window.get()))
 		{
-			//glfwSwapBuffers(m_Window.GetNativeWindow());
 			glfwPollEvents();
+			m_Renderer->DrawFrame();
 		}
-
-		glfwTerminate();
+		vkDeviceWaitIdle(m_Renderer->GetDevice());
 	}
 }

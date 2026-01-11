@@ -1,0 +1,25 @@
+project "VkBootstrap"
+    kind "StaticLib"
+    language "C++"
+    cppdialect "C++23"
+    staticruntime "on"
+
+    targetdir ("../../../bin/" .. outputdir .. "/%{prj.name}")
+    objdir ("../../../bin-int/" .. outputdir .. "/%{prj.name}")
+
+    files {
+        "include/**.cpp"
+    }
+
+    includedirs {
+        vkSDK .. "/Include"        
+    }
+
+    filter "configurations:Debug"
+        runtime "Debug"
+        symbols "on"
+        defines { "DEBUG" }
+
+    filter "configurations:Release"
+        runtime "Release"
+        optimize "on"

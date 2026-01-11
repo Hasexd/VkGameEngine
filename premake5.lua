@@ -4,7 +4,9 @@ workspace "VkGameEngine"
     startproject "Editor"
 
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
+vkSDK = os.getenv("VULKAN_SDK")
 
 include "Core"
 include "Editor"
 include "Core/Vendor/GLFW"
+include "Core/Vendor/vk-bootstrap"

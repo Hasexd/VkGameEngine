@@ -13,12 +13,22 @@ project "Core"
     }
 
     links {
-        "GLFW"
+        "GLFW",
+        "VkBootstrap"
+    }
+
+    local shaderPath = path.getabsolute("Shaders")
+
+    defines {
+        "PATH_TO_SHADERS=\"" .. shaderPath .. "\""
     }
 
     includedirs {
         "Headers",
-        "Vendor/glfw/include"
+        "Vendor/glfw/include",
+        "Vendor/VulkanMemoryAllocator/include",
+        "Vendor/vk-bootstrap/include",
+        vkSDK .. "/Include"
     }
 
     vpaths {
@@ -26,13 +36,17 @@ project "Core"
         ["Source Files"] = "Sources/**.cpp"
     }
 
+    filter "system:windows"
+        links { vkSDK .. "/Lib/vulkan-1.lib" }
+    
+    filter "system:linux"
+        links { "vulkan" }
+
     filter "configurations:Debug"
-        buildoptions "/MTd"
         runtime "Debug"
         symbols "on"
         defines { "DEBUG" }
 
     filter "configurations:Release"
-        buildoptions "/MT"
         runtime "Release"
         optimize "on"

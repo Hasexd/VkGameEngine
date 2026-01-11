@@ -18,7 +18,10 @@ project "Editor"
 
     includedirs {
         "../Core/Headers",
-        "../Core/Vendor/glfw/include"
+        "../Core/Vendor/glfw/include",
+        "../Core/Vendor/VulkanMemoryAllocator/include",
+        "../Core/Vendor/vk-bootstrap/include",
+        vkSDK .. "/Include"
     }
 
     vpaths {
@@ -27,12 +30,10 @@ project "Editor"
     }
 
     filter "configurations:Debug"
-        buildoptions "/MTd"
         runtime "Debug"
         symbols "on"
         defines { "DEBUG" }
 
     filter "configurations:Release"
-        buildoptions "/MT"
         runtime "Release"
         optimize "on"
