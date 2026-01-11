@@ -72,34 +72,8 @@ namespace Core
 		CreateFramebuffers();
 		CreateCommandPool();
 		CreateCommandBuffers();
+		CreateImmediateCommandResources();
 		CreateSyncObjects();
-
-		int width, height;
-		glfwGetFramebufferSize(window, &width, &height);
-		m_Camera.AspectRatio = static_cast<f32>(width) / static_cast<f32>(height);
-
-		std::vector<Vertex> vertices = 
-		{
-			{{-0.5f, -0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}},
-			{{ 0.5f, -0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}},
-			{{ 0.5f,  0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}},
-			{{-0.5f,  0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}},
-			{{-0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-			{{ 0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-			{{ 0.5f,  0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-			{{-0.5f,  0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}}
-		};
-		std::vector<u32> indices = 
-		{
-			 0, 1, 2, 2, 3, 0,
-			 5, 4, 7, 7, 6, 5,
-			 4, 0, 3, 3, 7, 4,
-			 1, 5, 6, 6, 2, 1,
-			 3, 2, 6, 6, 7, 3,
-			 4, 5, 1, 1, 0, 4
-		};
-
-		m_CubeMesh.Create(m_Allocator, vertices, indices, m_CoreData.Device, m_RenderData.CommandPool, m_RenderData.GraphicsQueue);
 	}
 
 	void Renderer::InitCoreData()
@@ -459,6 +433,26 @@ namespace Core
 		vkAllocateCommandBuffers(m_CoreData.Device, &allocInfo, m_RenderData.CommandBuffers.data());
 	}
 
+	void Renderer::CreateImmediateCommandResources()
+	{
+		VkCommandPoolCreateInfo poolInfo = {};
+		poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+		poolInfo.queueFamilyIndex = m_CoreData.Device.get_queue_index(vkb::QueueType::graphics).value();
+		poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+
+		vkCreateCommandPool(m_CoreData.Device, &poolInfo, nullptr, &m_ImmediateCommandPool);
+		ASSERT(m_ImmediateCommandPool);
+
+		VkCommandBufferAllocateInfo allocInfo = {};
+		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		allocInfo.commandPool = m_ImmediateCommandPool;
+		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		allocInfo.commandBufferCount = 1;
+
+		vkAllocateCommandBuffers(m_CoreData.Device, &allocInfo, &m_ImmediateCommandBuffer);
+		ASSERT(m_ImmediateCommandBuffer);
+	}
+
 	void Renderer::CreateSyncObjects()
 	{
 		m_RenderData.AvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
@@ -483,6 +477,34 @@ namespace Core
 			vkCreateSemaphore(m_CoreData.Device, &semaphoreInfo, nullptr, &m_RenderData.AvailableSemaphores[i]);
 			vkCreateFence(m_CoreData.Device, &fenceInfo, nullptr, &m_RenderData.InFlightFences[i]);
 		}
+	}
+
+	Buffer Renderer::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
+	{
+		VkBufferCreateInfo bufferInfo = {};
+		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		bufferInfo.size = size;
+		bufferInfo.usage = usage;
+		bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+		VmaAllocationCreateInfo allocInfo = {};
+		allocInfo.usage = memoryUsage;
+
+		Buffer buffer;
+		VkResult result = vmaCreateBuffer(m_Allocator, &bufferInfo, &allocInfo, &buffer.Buffer, &buffer.Allocation, nullptr);
+		ASSERT(result == VK_SUCCESS);
+
+		return buffer;
+	}
+
+	void Renderer::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
+	{
+		ImmediateSubmit([&](VkCommandBuffer cmd)
+			{
+				VkBufferCopy copyRegion = {};
+				copyRegion.size = size;
+				vkCmdCopyBuffer(cmd, srcBuffer, dstBuffer, 1, &copyRegion);
+			});
 	}
 
 	Image Renderer::CreateImage(u32 width, u32 height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VmaMemoryUsage memoryUsage)
@@ -551,12 +573,31 @@ namespace Core
 		CreateFramebuffers();
 		CreateCommandPool();
 		CreateCommandBuffers();
-
-		m_Camera.AspectRatio = static_cast<f32>(m_CoreData.Swapchain.extent.width) /
-			static_cast<f32>(m_CoreData.Swapchain.extent.height);
 	}
 
-	void Renderer::DrawFrame()
+	void Renderer::ImmediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function)
+	{
+		VkCommandBufferBeginInfo beginInfo = {};
+		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+		vkBeginCommandBuffer(m_ImmediateCommandBuffer, &beginInfo);
+
+		function(m_ImmediateCommandBuffer);
+
+		vkEndCommandBuffer(m_ImmediateCommandBuffer);
+
+		VkSubmitInfo submitInfo = {};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &m_ImmediateCommandBuffer;
+
+		vkQueueSubmit(m_RenderData.GraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+		vkQueueWaitIdle(m_RenderData.GraphicsQueue);
+
+	}
+
+	void Renderer::DrawFrame(const std::vector<std::shared_ptr<Object>>& objects, const Camera& camera)
 	{
 		vkWaitForFences(m_CoreData.Device, 1, &m_RenderData.InFlightFences[m_RenderData.CurrentFrame], VK_TRUE, UINT64_MAX);
 
@@ -621,18 +662,20 @@ namespace Core
 		vkCmdSetViewport(m_RenderData.CommandBuffers[imageIndex], 0, 1, &viewport);
 		vkCmdSetScissor(m_RenderData.CommandBuffers[imageIndex], 0, 1, &scissor);
 
-		MVP mvp = {};
-		mvp.View = m_Camera.GetViewMatrix();
-		mvp.Projection = m_Camera.GetProjectionMatrix();
-		mvp.Model = m_CubeTransform.GetModelMatrix();
+		for (const auto& obj : objects)
+		{
+			MVP mvp = {};
+			mvp.View = camera.GetViewMatrix();
+			mvp.Projection = camera.GetProjectionMatrix();
+			mvp.Model = obj->GetTransform().GetModelMatrix();
 
-		vkCmdPushConstants(m_RenderData.CommandBuffers[imageIndex], m_GraphicsShader.PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MVP), &mvp);
+			vkCmdPushConstants(m_RenderData.CommandBuffers[imageIndex], m_GraphicsShader.PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MVP), &mvp);
 
-		m_CubeMesh.Bind(m_RenderData.CommandBuffers[imageIndex]);
-		m_CubeMesh.Draw(m_RenderData.CommandBuffers[imageIndex]);
-
+			obj->Bind(m_RenderData.CommandBuffers[imageIndex]);
+			obj->Draw(m_RenderData.CommandBuffers[imageIndex]);
+		}
+	
 		vkCmdEndRenderPass(m_RenderData.CommandBuffers[imageIndex]);
-
 		vkEndCommandBuffer(m_RenderData.CommandBuffers[imageIndex]);
 
 		std::array waitSemaphores = { m_RenderData.AvailableSemaphores[m_RenderData.CurrentFrame] };
@@ -677,6 +720,58 @@ namespace Core
 		m_RenderData.CurrentFrame = (m_RenderData.CurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 	}
 
+	MeshBuffers Renderer::CreateMeshBuffers(const std::vector<Vertex>& vertices, const std::vector<u32>& indices)
+	{
+		MeshBuffers meshBuffers;
+		meshBuffers.VertexCount = static_cast<u32>(vertices.size());
+		meshBuffers.IndexCount = static_cast<u32>(indices.size());
+
+		VkDeviceSize vertexBufferSize = sizeof(Vertex) * vertices.size();
+
+		Buffer stagingBuffer = CreateBuffer(
+			vertexBufferSize,
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VMA_MEMORY_USAGE_CPU_ONLY
+		);
+
+		void* data;
+		vmaMapMemory(m_Allocator, stagingBuffer.Allocation, &data);
+		std::memcpy(data, vertices.data(), vertexBufferSize);
+		vmaUnmapMemory(m_Allocator, stagingBuffer.Allocation);
+
+		meshBuffers.VertexBuffer = CreateBuffer(
+			vertexBufferSize,
+			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+			VMA_MEMORY_USAGE_GPU_ONLY
+		);
+
+		CopyBuffer(stagingBuffer.Buffer, meshBuffers.VertexBuffer.Buffer, vertexBufferSize);
+		vmaDestroyBuffer(m_Allocator, stagingBuffer.Buffer, stagingBuffer.Allocation);
+
+		VkDeviceSize indexBufferSize = sizeof(u32) * indices.size();
+
+		stagingBuffer = CreateBuffer(
+			indexBufferSize,
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VMA_MEMORY_USAGE_CPU_ONLY
+		);
+
+		vmaMapMemory(m_Allocator, stagingBuffer.Allocation, &data);
+		std::memcpy(data, indices.data(), indexBufferSize);
+		vmaUnmapMemory(m_Allocator, stagingBuffer.Allocation);
+
+		meshBuffers.IndexBuffer = CreateBuffer(
+			indexBufferSize,
+			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+			VMA_MEMORY_USAGE_GPU_ONLY
+		);
+
+		CopyBuffer(stagingBuffer.Buffer, meshBuffers.IndexBuffer.Buffer, indexBufferSize);
+		vmaDestroyBuffer(m_Allocator, stagingBuffer.Buffer, stagingBuffer.Allocation);
+
+		return meshBuffers;
+	}
+
 	void Renderer::Cleanup()
 	{
 		vkDeviceWaitIdle(m_CoreData.Device);
@@ -693,6 +788,7 @@ namespace Core
 		}
 
 		vkDestroyCommandPool(m_CoreData.Device, m_RenderData.CommandPool, nullptr);
+		vkDestroyCommandPool(m_CoreData.Device, m_ImmediateCommandPool, nullptr);
 
 		for (auto framebuffer : m_RenderData.Framebuffers)
 		{

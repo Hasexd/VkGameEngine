@@ -24,6 +24,7 @@ namespace Core
 	{
 		VkQueue GraphicsQueue;
 		VkQueue PresentQueue;
+
 		std::vector<VkImage> SwapchainImages;
 		std::vector<VkImageView> SwapchainImageViews;
 		std::vector<VkFramebuffer> Framebuffers;
@@ -120,5 +121,13 @@ namespace Core
 		glm::mat4 Model;
 		glm::mat4 View;
 		glm::mat4 Projection;
+	};
+
+	struct MeshBuffers
+	{
+		Buffer VertexBuffer;
+		Buffer IndexBuffer;
+		u32 VertexCount;
+		u32 IndexCount;
 	};
 }

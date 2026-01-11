@@ -5,6 +5,7 @@
 #include <fstream>
 #include <vector>
 #include <array>
+#include <functional>
 
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
@@ -16,6 +17,7 @@
 #include "VkTypes.h"
 #include "Mesh.h"
 #include "Transform.h"
+#include "Object.h"
 #include "Camera.h"
 
 constexpr usize MAX_FRAMES_IN_FLIGHT = 2;
@@ -28,11 +30,12 @@ namespace Core
 		Renderer() = default;
 
 		void Init(GLFWwindow* window);
-		void DrawFrame();
+		void DrawFrame(const std::vector<std::shared_ptr<Object>>& objects, const Camera& camera);
 		void Cleanup();
 
 		[[nodiscard]] vkb::Device GetDevice() const noexcept { return m_CoreData.Device; }
 
+		MeshBuffers CreateMeshBuffers(const std::vector<Vertex>& vertices, const std::vector<u32>& indices);
 	private:
 		void InitCoreData();
 		void CreateSwapchain();
@@ -43,8 +46,14 @@ namespace Core
 		void CreateFramebuffers();
 		void CreateCommandPool();
 		void CreateCommandBuffers();
+		void CreateImmediateCommandResources();
 		void CreateSyncObjects();
 		void RecreateSwapchain();
+
+		void ImmediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
+
+		Buffer CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
 		Image CreateImage(u32 width, u32 height, VkFormat format, VkImageTiling tiling,
 			VkImageUsageFlags usage, VmaMemoryUsage memoryUsage);
@@ -55,12 +64,11 @@ namespace Core
 		CoreData m_CoreData;
 		RenderData m_RenderData;
 
+		VkCommandPool m_ImmediateCommandPool;
+		VkCommandBuffer m_ImmediateCommandBuffer;
+
 		Image m_DepthImage;
 		Shader m_GraphicsShader;
-		Camera m_Camera;
-
-		Mesh m_CubeMesh;
-		Transform m_CubeTransform;
 
 		VmaAllocator m_Allocator;
 	};

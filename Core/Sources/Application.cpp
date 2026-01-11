@@ -38,6 +38,34 @@ namespace Core
 		ASSERT(m_Window);
 
 		m_Renderer->Init(m_Window.get());
+
+		m_Camera.AspectRatio = static_cast<f32>(width) / static_cast<f32>(height);
+
+		m_Objects.push_back(std::make_shared<Object>());
+
+		std::vector<Vertex> vertices =
+		{
+			{{-0.5f, -0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}},
+			{{ 0.5f, -0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}},
+			{{ 0.5f,  0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}},
+			{{-0.5f,  0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}},
+			{{-0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+			{{ 0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+			{{ 0.5f,  0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+			{{-0.5f,  0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}}
+		};
+		std::vector<u32> indices =
+		{
+			 0, 1, 2, 2, 3, 0,
+			 5, 4, 7, 7, 6, 5,
+			 4, 0, 3, 3, 7, 4,
+			 1, 5, 6, 6, 2, 1,
+			 3, 2, 6, 6, 7, 3,
+			 4, 5, 1, 1, 0, 4
+		};
+
+		Mesh& mesh = m_Objects[0]->GetMesh();
+		mesh = m_Renderer->CreateMeshBuffers(vertices, indices);
 	}
 
 	Application::~Application()
@@ -51,7 +79,7 @@ namespace Core
 		while (!glfwWindowShouldClose(m_Window.get()))
 		{
 			glfwPollEvents();
-			m_Renderer->DrawFrame();
+			m_Renderer->DrawFrame(m_Objects, m_Camera);
 		}
 		vkDeviceWaitIdle(m_Renderer->GetDevice());
 	}

@@ -23,10 +23,9 @@ namespace Core
 	{
 	public:
 		Mesh() = default;
+		Mesh(const MeshBuffers& meshBuffers);
 		~Mesh() = default;
 
-		void Create(VmaAllocator allocator, const std::vector<Vertex>& vertices, const std::vector<u32>& indices,
-			VkDevice device, VkCommandPool commandPool, VkQueue transferQueue);
 		void Destroy(VmaAllocator allocator);
 
 		void Bind(VkCommandBuffer commandBuffer) const;
@@ -34,10 +33,6 @@ namespace Core
 
 		[[nodiscard]] u32 GetIndexCount() const noexcept { return m_IndexCount; }
 		[[nodiscard]] u32 GetVertexCount() const noexcept { return m_VertexCount; }
-
-	private:
-		Buffer CreateBuffer(VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
-		void CopyBuffer(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
 	private:
 		Buffer m_VertexBuffer;
