@@ -9,6 +9,7 @@
 #include "Types.h"
 #include "Log.h"
 #include "Renderer.h"
+#include "UUID.h"
 
 namespace Core
 {
