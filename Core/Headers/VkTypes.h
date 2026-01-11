@@ -4,6 +4,7 @@
 
 #include <VkBootstrap.h>
 #include <vulkan/vulkan.h>
+#include <glm/glm.hpp>
 
 #include "Types.h"
 
@@ -28,8 +29,6 @@ namespace Core
 		std::vector<VkFramebuffer> Framebuffers;
 
 		VkRenderPass RenderPass;
-		VkPipeline GraphicsPipeline;
-		VkPipelineLayout PipelineLayout;
 
 		VkCommandPool CommandPool;
 		std::vector<VkCommandBuffer> CommandBuffers;
@@ -40,5 +39,86 @@ namespace Core
 		std::vector<VkFence> ImagesInFlight;
 
 		usize CurrentFrame = 0;
+	};
+
+	struct Buffer
+	{
+		VkBuffer Buffer;
+		VmaAllocation Allocation;
+	};
+
+	struct Image
+	{
+		VkImage Image;
+		VkImageView View;
+		VkExtent3D Extent;
+		VkFormat Format;
+		VmaAllocation Allocation;
+	};
+
+	struct DescriptorBinding
+	{
+		VkDescriptorType Type;
+
+		union
+		{
+			VkDescriptorImageInfo ImageInfo;
+			VkDescriptorBufferInfo BufferInfo;
+		};
+
+		explicit DescriptorBinding(const Image& image, const VkDescriptorType type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
+			: Type(type)
+		{
+			ImageInfo.imageView = image.View;
+			ImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+		}
+
+		explicit DescriptorBinding(const Image& image, VkSampler sampler, const VkDescriptorType type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
+			: Type(type)
+		{
+			ImageInfo.imageView = image.View;
+			ImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+			ImageInfo.sampler = sampler;
+		}
+
+		explicit DescriptorBinding(VkDescriptorImageInfo info, const VkDescriptorType type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
+			: Type(type)
+		{
+			ImageInfo = info;
+		}
+
+		explicit DescriptorBinding(const Buffer& buffer, usize offset, const VkDescriptorType type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, const VkDeviceSize size = VK_WHOLE_SIZE)
+			: Type(type)
+		{
+			BufferInfo.buffer = buffer.Buffer;
+			BufferInfo.offset = offset;
+			BufferInfo.range = size;
+		}
+	};
+
+	struct Shader
+	{
+		VkPipeline Pipeline;
+		VkPipelineLayout PipelineLayout;
+		VkDescriptorSet DescriptorSet;
+		VkDescriptorSetLayout DescriptorLayout;
+		VkDescriptorPool DescriptorPool;
+
+		std::vector<DescriptorBinding> bindings;
+
+		void Destroy(const VkDevice& device) const
+		{
+			vkDestroyPipeline(device, Pipeline, nullptr);
+			vkDestroyPipelineLayout(device, PipelineLayout, nullptr);
+			vkDestroyDescriptorPool(device, DescriptorPool, nullptr);
+			vkDestroyDescriptorSetLayout(device, DescriptorLayout, nullptr);
+		}
+	};
+
+	struct MVP
+	{
+		glm::mat4 Model;
+		glm::mat4 View;
+		glm::mat4 Projection;
 	};
 }

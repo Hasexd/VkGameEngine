@@ -9,7 +9,10 @@ project "Core"
 
     files {
         "Headers/**.h",
-        "Sources/**.cpp"
+        "Sources/**.cpp",
+        "Shaders/**.frag",
+        "Shaders/**.vert",
+        "Shaders/**.comp"
     }
 
     links {
@@ -28,16 +31,20 @@ project "Core"
         "Vendor/glfw/include",
         "Vendor/VulkanMemoryAllocator/include",
         "Vendor/vk-bootstrap/include",
+        "Vendor/glm",
         vkSDK .. "/Include"
     }
 
     vpaths {
         ["Header Files"] = "Headers/**.h",
-        ["Source Files"] = "Sources/**.cpp"
+        ["Source Files"] = "Sources/**.cpp",
     }
 
     filter "system:windows"
         links { vkSDK .. "/Lib/vulkan-1.lib" }
+        prebuildcommands {
+            "cd %{prj.location} && call Scripts/compile_shaders.bat"
+        }
     
     filter "system:linux"
         links { "vulkan" }

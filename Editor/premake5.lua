@@ -21,6 +21,7 @@ project "Editor"
         "../Core/Vendor/glfw/include",
         "../Core/Vendor/VulkanMemoryAllocator/include",
         "../Core/Vendor/vk-bootstrap/include",
+        "../Core/Vendor/glm",
         vkSDK .. "/Include"
     }
 
