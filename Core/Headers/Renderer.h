@@ -43,6 +43,8 @@ namespace Core
 		void CreateDepthResources();
 		void CreateRP();
 		void CreateGP();
+		void CreateBlitPipeline();
+		void CreateRenderTextures();
 		void CreateFramebuffers();
 		void CreateCommandPool();
 		void CreateCommandBuffers();
@@ -55,8 +57,10 @@ namespace Core
 		Buffer CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
-		Image CreateImage(u32 width, u32 height, VkFormat format, VkImageTiling tiling,
+		Image CreateImage(u32 width, u32 height, VkFormat format, VkImageTiling tiling, VkImageAspectFlags aspects,
 			VkImageUsageFlags usage, VmaMemoryUsage memoryUsage);
+
+		void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 
 	private:
 		GLFWwindow* m_Window;
@@ -68,7 +72,16 @@ namespace Core
 		VkCommandBuffer m_ImmediateCommandBuffer;
 
 		Image m_DepthImage;
+
 		Shader m_GraphicsShader;
+		Shader m_BlitShader;
+
+		Image m_RenderTexture;
+		VkSampler m_RenderTextureSampler;
+		VkRenderPass m_RenderTextureRenderPass;
+		VkFramebuffer m_RenderTextureFramebuffer;
+		u32 m_RenderTextureWidth;
+		u32 m_RenderTextureHeight;
 
 		VmaAllocator m_Allocator;
 	};
