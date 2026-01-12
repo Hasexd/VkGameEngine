@@ -41,29 +41,15 @@ namespace Core
 
 		m_Camera.AspectRatio = static_cast<f32>(width) / static_cast<f32>(height);
 
-		std::vector<Vertex> vertices =
-		{
-			{{-0.5f, -0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}},
-			{{ 0.5f, -0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}},
-			{{ 0.5f,  0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}},
-			{{-0.5f,  0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}},
-			{{-0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-			{{ 0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-			{{ 0.5f,  0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-			{{-0.5f,  0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}}
-		};
-		std::vector<u32> indices =
-		{
-			 0, 1, 2, 2, 3, 0,
-			 5, 4, 7, 7, 6, 5,
-			 4, 0, 3, 3, 7, 4,
-			 1, 5, 6, 6, 2, 1,
-			 3, 2, 6, 6, 7, 3,
-			 4, 5, 1, 1, 0, 4
-		};
+		objl::Loader loader;
+		std::filesystem::path objPath = std::filesystem::path(PATH_TO_OBJS) / "Cube.obj";
+
+		loader.LoadFile(objPath.string());
+
 
 		auto obj = AddObject();
-		obj->AddComponent<Mesh>(m_Renderer->CreateMeshBuffers(vertices, indices));
+		obj->GetComponent<Transform>()->Position = {0.0f, 0.0f, -3.0f};
+		CreateMesh(obj, loader.LoadedVertices, loader.LoadedIndices);
 	}
 
 	Application::~Application()
@@ -85,5 +71,10 @@ namespace Core
 	std::shared_ptr<Object> Application::AddObject()
 	{
 		return m_Objects.emplace_back(std::make_shared<Object>(m_ECS));
+	}
+
+	void Application::CreateMesh(const std::shared_ptr<Object>& obj, const std::vector<Vertex>& vertices, const std::vector<u32>& indices)
+	{
+		obj->AddComponent<Mesh>(m_Renderer->CreateMeshBuffers(vertices, indices));
 	}
 }

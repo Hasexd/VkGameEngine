@@ -21,9 +21,11 @@ project "Core"
     }
 
     local shaderPath = path.getabsolute("Shaders")
+    local objPath = path.getabsolute("Objs");
 
     defines {
-        "PATH_TO_SHADERS=\"" .. shaderPath .. "\""
+        "PATH_TO_SHADERS=\"" .. shaderPath .. "\"",
+        "PATH_TO_OBJS=\"" .. objPath .. "\""
     }
 
     includedirs {

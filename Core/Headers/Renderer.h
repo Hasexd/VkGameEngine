@@ -6,6 +6,7 @@
 #include <vector>
 #include <array>
 #include <functional>
+#include <cstddef>
 
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>

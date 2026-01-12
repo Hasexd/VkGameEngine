@@ -26,6 +26,8 @@ namespace Core
 
 		std::shared_ptr<Object> AddObject();
 
+		void CreateMesh(const std::shared_ptr<Object>& obj, const std::vector<Vertex>& vertices, const std::vector<u32>& indices);
+
 	private:
 		std::unique_ptr<GLFWwindow, decltype(&glfwDestroyWindow)> m_Window;
 		std::unique_ptr<Renderer> m_Renderer;

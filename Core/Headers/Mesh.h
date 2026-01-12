@@ -11,14 +11,11 @@
 #include "VkTypes.h"
 #include "Log.h"
 #include "Component.h"
+#include "OBJ-Loader.h"
 
 namespace Core
 {
-	struct Vertex
-	{
-		glm::vec3 Position;
-		glm::vec3 Color;
-	};
+	using Vertex = objl::Vertex;
 
 	class Mesh : public Component
 	{

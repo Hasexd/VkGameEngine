@@ -253,21 +253,26 @@ namespace Core
 
 		VkVertexInputBindingDescription bindingDescription = {};
 		bindingDescription.binding = 0;
-		bindingDescription.stride = sizeof(f32) * 6;
+		bindingDescription.stride = sizeof(Vertex);
 		bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
 		std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
-		attributeDescriptions.resize(2);
+		attributeDescriptions.resize(3);
 
 		attributeDescriptions[0].binding = 0;
 		attributeDescriptions[0].location = 0;
 		attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-		attributeDescriptions[0].offset = 0;
+		attributeDescriptions[0].offset = offsetof(Vertex, Position);
 
 		attributeDescriptions[1].binding = 0;
 		attributeDescriptions[1].location = 1;
 		attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-		attributeDescriptions[1].offset = sizeof(f32) * 3;
+		attributeDescriptions[1].offset = offsetof(Vertex, Normal);
+
+		attributeDescriptions[2].binding = 0;
+		attributeDescriptions[2].location = 2;
+		attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescriptions[2].offset = offsetof(Vertex, TextureCoordinate);
 
 		m_GraphicsShader = CreateShader(m_RenderTextureRenderPass, {}, { pushConstantRange }, &bindingDescription, attributeDescriptions, &viewport, &scissor, "object");
 		UpdateDescriptorSets(m_GraphicsShader);
