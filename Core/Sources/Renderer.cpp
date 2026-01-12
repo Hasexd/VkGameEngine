@@ -290,7 +290,7 @@ namespace Core
 
 		std::vector<DescriptorBinding> bindings =
 		{
-			DescriptorBinding(m_RenderTexture, m_RenderTextureSampler, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+			DescriptorBinding(m_RenderTexture, m_RenderTextureSampler, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
 		};
 
 		m_BlitShader = CreateShader(m_RenderData.RenderPass, bindings, {}, nullptr, {}, &viewport, &scissor, "blit");

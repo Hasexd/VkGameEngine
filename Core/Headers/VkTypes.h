@@ -67,18 +67,18 @@ namespace Core
 			VkDescriptorBufferInfo BufferInfo;
 		};
 
-		explicit DescriptorBinding(const Image& image, const VkDescriptorType type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
+		explicit DescriptorBinding(const Image& image, const VkDescriptorType type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VkImageLayout layout = VK_IMAGE_LAYOUT_GENERAL)
 			: Type(type)
 		{
 			ImageInfo.imageView = image.View;
-			ImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+			ImageInfo.imageLayout = layout;
 		}
 
-		explicit DescriptorBinding(const Image& image, VkSampler sampler, const VkDescriptorType type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
+		explicit DescriptorBinding(const Image& image, VkSampler sampler, const VkDescriptorType type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VkImageLayout layout = VK_IMAGE_LAYOUT_GENERAL)
 			: Type(type)
 		{
 			ImageInfo.imageView = image.View;
-			ImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+			ImageInfo.imageLayout = layout;
 			ImageInfo.sampler = sampler;
 		}
 
