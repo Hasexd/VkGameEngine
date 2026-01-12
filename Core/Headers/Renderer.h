@@ -62,6 +62,16 @@ namespace Core
 
 		void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 
+		Shader CreateShader(const VkRenderPass& renderPass, const std::vector<DescriptorBinding>& bindings,
+			const std::vector<VkPushConstantRange>& pushConstantRanges,
+			VkVertexInputBindingDescription* vtxInputBindingDesc,
+			std::vector<VkVertexInputAttributeDescription> vtxInputAttrDesc,
+			VkViewport* viewport,
+			VkRect2D* scissor,
+			const std::string& name);
+
+		void UpdateDescriptorSets(const Shader& shader);
+
 	private:
 		GLFWwindow* m_Window;
 

@@ -105,7 +105,7 @@ namespace Core
 		VkDescriptorSetLayout DescriptorLayout;
 		VkDescriptorPool DescriptorPool;
 
-		std::vector<DescriptorBinding> bindings;
+		std::vector<DescriptorBinding> Bindings;
 
 		void Destroy(const VkDevice& device) const
 		{
