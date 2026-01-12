@@ -842,15 +842,18 @@ namespace Core
 
 		for (const auto& obj : objects)
 		{
-			MVP mvp = {};
-			mvp.View = camera.GetViewMatrix();
-			mvp.Projection = camera.GetProjectionMatrix();
-			mvp.Model = obj->GetTransform().GetModelMatrix();
 
-			vkCmdPushConstants(cmd, m_GraphicsShader.PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MVP), &mvp);
+			if (obj->HasComponent<Mesh>())
+			{
+				MVP mvp = {};
+				mvp.View = camera.GetViewMatrix();
+				mvp.Projection = camera.GetProjectionMatrix();
+				mvp.Model = obj->GetComponent<Transform>()->GetModelMatrix();
 
-			obj->Bind(cmd);
-			obj->Draw(cmd);
+				vkCmdPushConstants(cmd, m_GraphicsShader.PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MVP), &mvp);
+
+				obj->Draw(cmd);
+			}
 		}
 
 		vkCmdEndRenderPass(cmd);

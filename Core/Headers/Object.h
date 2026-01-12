@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ECS.h"
 #include "Transform.h"
 #include "Mesh.h"
 
@@ -8,18 +9,56 @@ namespace Core
 	class Object
 	{
 	public:
-		Object() = default;
-		~Object() = default;
+		Object(ECS& ecs);
 
-		void Bind(VkCommandBuffer commandBuffer);
-		void Draw(VkCommandBuffer commandBuffer);
+		template<typename T, typename... Args>
+		requires(std::is_base_of_v<Component, T>)
+		void AddComponent(Args&&... args);
 
-		[[nodiscard]] Transform& GetTransform() noexcept { return m_Transform; }
-		[[nodiscard]] const Transform& GetTransform() const noexcept { return m_Transform; }
-		[[nodiscard]] Mesh& GetMesh() noexcept { return m_Mesh; }
-		[[nodiscard]] const Mesh& GetMesh() const noexcept { return m_Mesh; }
+		template<typename T>
+		requires(std::is_base_of_v<Component, T>)
+		bool HasComponent();
+
+		template<typename... Ts>
+		requires((std::is_base_of_v<Component, Ts> && ...))
+		bool HasComponents();
+
+		template<typename T>
+		requires(std::is_base_of_v<Component, T>)
+		T* GetComponent();
+
+		void Draw(VkCommandBuffer cmd);
+
 	private:
-		Transform m_Transform;
-		Mesh m_Mesh;
+		UUID m_ID;
+		ECS& m_ECS;
 	};
+
+	template<typename T, typename... Args>
+	requires(std::is_base_of_v<Component, T>)
+	void Object::AddComponent(Args&&... args)
+	{
+		m_ECS.AddComponent<T>(m_ID, std::forward<Args>(args)...);
+	}
+
+	template<typename T>
+	requires(std::is_base_of_v<Component, T>)
+	bool Object::HasComponent()
+	{
+		return m_ECS.HasComponent<T>(m_ID);
+	}
+
+	template<typename... Ts>
+	requires((std::is_base_of_v<Component, Ts> && ...))
+	bool Object::HasComponents()
+	{
+		return m_ECS.HasComponents<Ts...>(m_ID);
+	}
+
+	template<typename T>
+	requires(std::is_base_of_v<Component, T>)
+	T* Object::GetComponent()
+	{
+		return m_ECS.GetComponent<T>(m_ID);
+	}
 }

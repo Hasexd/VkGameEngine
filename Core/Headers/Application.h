@@ -12,6 +12,7 @@
 #include "Renderer.h"
 #include "UUID.h"
 #include "Object.h"
+#include "ECS.h"
 
 namespace Core
 {
@@ -23,9 +24,13 @@ namespace Core
 
 		void Run();
 
+		std::shared_ptr<Object> AddObject();
+
 	private:
 		std::unique_ptr<GLFWwindow, decltype(&glfwDestroyWindow)> m_Window;
 		std::unique_ptr<Renderer> m_Renderer;
+
+		ECS m_ECS;
 		Camera m_Camera;
 
 		std::vector<std::shared_ptr<Object>> m_Objects;

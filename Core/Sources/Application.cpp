@@ -41,8 +41,6 @@ namespace Core
 
 		m_Camera.AspectRatio = static_cast<f32>(width) / static_cast<f32>(height);
 
-		m_Objects.push_back(std::make_shared<Object>());
-
 		std::vector<Vertex> vertices =
 		{
 			{{-0.5f, -0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}},
@@ -64,8 +62,8 @@ namespace Core
 			 4, 5, 1, 1, 0, 4
 		};
 
-		Mesh& mesh = m_Objects[0]->GetMesh();
-		mesh = m_Renderer->CreateMeshBuffers(vertices, indices);
+		auto obj = AddObject();
+		obj->AddComponent<Mesh>(m_Renderer->CreateMeshBuffers(vertices, indices));
 	}
 
 	Application::~Application()
@@ -82,5 +80,10 @@ namespace Core
 			m_Renderer->DrawFrame(m_Objects, m_Camera);
 		}
 		vkDeviceWaitIdle(m_Renderer->GetDevice());
+	}
+
+	std::shared_ptr<Object> Application::AddObject()
+	{
+		return m_Objects.emplace_back(std::make_shared<Object>(m_ECS));
 	}
 }

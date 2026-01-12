@@ -3,9 +3,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "Component.h"
+
 namespace Core
 {
-	struct Transform
+	struct Transform : public Component
 	{
 		glm::vec3 Position = glm::vec3(0.0f, 0.0f, 0.0f);
 		glm::vec3 Rotation = glm::vec3(0.0f, 0.0f, 0.0f);

@@ -2,13 +2,18 @@
 
 namespace Core
 {
-	void Object::Bind(VkCommandBuffer commandBuffer)
+	Object::Object(ECS& ecs):
+		m_ECS(ecs),
+		m_ID(ecs.CreateEntity()) 
 	{
-		m_Mesh.Bind(commandBuffer);
+		AddComponent<Transform>();
 	}
 
-	void Object::Draw(VkCommandBuffer commandBuffer)
+	void Object::Draw(VkCommandBuffer cmd)
 	{
-		m_Mesh.Draw(commandBuffer);
+		Mesh* mesh = GetComponent<Mesh>();
+
+		mesh->Bind(cmd);
+		mesh->Draw(cmd);
 	}
 }

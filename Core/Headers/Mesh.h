@@ -10,6 +10,7 @@
 #include "Types.h"
 #include "VkTypes.h"
 #include "Log.h"
+#include "Component.h"
 
 namespace Core
 {
@@ -19,7 +20,7 @@ namespace Core
 		glm::vec3 Color;
 	};
 
-	class Mesh
+	class Mesh : public Component
 	{
 	public:
 		Mesh() = default;
