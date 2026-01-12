@@ -32,6 +32,8 @@ namespace Core
 		std::unique_ptr<GLFWwindow, decltype(&glfwDestroyWindow)> m_Window;
 		std::unique_ptr<Renderer> m_Renderer;
 
+		double m_DeltaTime;
+
 		ECS m_ECS;
 		Camera m_Camera;
 
