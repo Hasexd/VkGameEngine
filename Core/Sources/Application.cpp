@@ -10,8 +10,7 @@ namespace
 
 namespace Core
 {
-	Application::Application(const std::string& title, u32 width, u32 height) :
-		m_Window(nullptr, glfwDestroyWindow),
+	Application::Application(const std::string& title, u32 width, u32 height):
 		m_Renderer(std::make_unique<Renderer>())
 	{
 		s_Instance = this;
@@ -33,26 +32,20 @@ namespace Core
 			return;
 		}
 
-		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-		m_Window.reset(glfwCreateWindow(static_cast<int>(width), static_cast<int>(height), title.c_str(), nullptr, nullptr));
-
-		ASSERT(m_Window);
-
-		m_Renderer->Init(m_Window.get());
-
+		m_Window.Create(title, width, height);
+		m_Window.SetEventCallback([this](Event& event) { RaiseEvent(event); });
+		m_Renderer->Init(m_Window.GetHandle());
 	}
 
 	Application::~Application()
 	{
-		m_Window.reset();
+		m_Window.Destroy();
 		glfwTerminate();
 		s_Instance = nullptr;
 	}
 
 	void Application::Run()
 	{
-		glfwSetInputMode(m_Window.get(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
 		f32 lastFrame = glfwGetTime();
 		while (m_Running)
 		{
@@ -62,7 +55,7 @@ namespace Core
 
 			glfwPollEvents();
 
-			if (glfwWindowShouldClose(m_Window.get()))
+			if (m_Window.ShouldClose())
 			{
 				m_Running = false;
 				break;
@@ -70,7 +63,6 @@ namespace Core
 
 			for(const auto& layer : m_LayerStack)
 				layer->OnUpdate(m_DeltaTime);
-
 
 			m_Renderer->BeginFrame();
 			m_Renderer->BeginRenderToTexture();
@@ -88,6 +80,21 @@ namespace Core
 		vkDeviceWaitIdle(m_Renderer->GetDevice());
 	}
 
+	void Application::SetInputMode(i32 mode)
+	{
+		glfwSetInputMode(s_Instance->m_Window.GetHandle(), GLFW_CURSOR, mode);
+	}
+
+	void Application::RaiseEvent(Event& event)
+	{
+		for (auto& layer : std::views::reverse(m_LayerStack))
+		{
+			layer->OnEvent(event);
+			if (event.Handled)
+				break;
+		}
+	}
+
 	Application& Application::Get()
 	{
 		return *s_Instance;
@@ -98,16 +105,9 @@ namespace Core
 		return s_Instance ? s_Instance->m_DeltaTime : 0.0;
 	}
 
-	GLFWwindow* Application::GetWindow()
+	Window& Application::GetWindow()
 	{
-		return s_Instance->m_Window.get();
-	}
-
-	glm::vec2 Application::GetFramebufferSize()
-	{
-		int width, height;
-		glfwGetFramebufferSize(s_Instance->m_Window.get(), &width, &height);
-		return { static_cast<f32>(width), static_cast<f32>(height) };
+		return s_Instance->m_Window;
 	}
 
 	VkCommandBuffer Application::GetCurrentCommandBuffer()

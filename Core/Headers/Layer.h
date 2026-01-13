@@ -4,6 +4,7 @@
 #include <concepts>
 
 #include "Types.h"
+#include "Event.h"
 
 namespace Core
 {
@@ -13,7 +14,7 @@ namespace Core
 		Layer() = default;
 		virtual ~Layer() = default;
 
-		virtual void OnEvent() {}
+		virtual void OnEvent(Event& event) {}
 		virtual void OnRender() {}
 		virtual void OnUpdate(f32 deltaTime) {}
 

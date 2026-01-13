@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <ranges>
 
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
@@ -14,6 +15,7 @@
 #include "Object.h"
 #include "ECS.h"
 #include "Layer.h"
+#include "Window.h"
 
 namespace Core
 {
@@ -26,8 +28,7 @@ namespace Core
 		static Application& Get();
 		static f32 GetDeltaTime();
 
-		static GLFWwindow* GetWindow();
-		static glm::vec2 GetFramebufferSize();
+		static Window& GetWindow();
 
 		static VkCommandBuffer GetCurrentCommandBuffer();
 		static VkPipelineLayout GetGraphicsPipelineLayout();
@@ -37,7 +38,10 @@ namespace Core
 		static MeshBuffers CreateMeshBuffers(const std::vector<Vertex>& vertices, const std::vector<u32>& indices);
 		static Mesh CreateMeshFromOBJ(const std::string& objName);
 
+		static void SetInputMode(i32 mode);
+
 		void Run();
+		void RaiseEvent(Event& event);
 
 		template<std::derived_from<Layer> T>
 		void PushLayer();
@@ -47,10 +51,11 @@ namespace Core
 
 	private:
 		static inline Application* s_Instance = nullptr;
+
 		f32 m_DeltaTime;
 		bool m_Running = true;
 
-		std::unique_ptr<GLFWwindow, decltype(&glfwDestroyWindow)> m_Window;
+		Window m_Window;
 		std::unique_ptr<Renderer> m_Renderer;
 		std::vector<std::unique_ptr<Layer>> m_LayerStack;
 	};
