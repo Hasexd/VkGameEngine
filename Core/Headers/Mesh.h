@@ -31,6 +31,8 @@ namespace Core
 
 		[[nodiscard]] u32 GetIndexCount() const noexcept { return m_IndexCount; }
 		[[nodiscard]] u32 GetVertexCount() const noexcept { return m_VertexCount; }
+		[[nodiscard]] const Buffer& GetVertexBuffer() const noexcept { return m_VertexBuffer; }
+		[[nodiscard]] const Buffer& GetIndexBuffer() const noexcept { return m_IndexBuffer; }
 
 	private:
 		Buffer m_VertexBuffer;

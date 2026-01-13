@@ -12,6 +12,8 @@ namespace Core
 		Object(ECS& ecs);
 		virtual ~Object() = default;
 
+		virtual void OnUpdate(float deltaTime) {};
+
 		template<std::derived_from<Component> T, typename... Args>
 		void AddComponent(Args&&... args);
 

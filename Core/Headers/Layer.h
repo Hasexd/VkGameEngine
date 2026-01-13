@@ -17,6 +17,7 @@ namespace Core
 
 		virtual void OnEvent(Event& event) {}
 		virtual void OnRender() {}
+		virtual void OnSwapchainRender() {}
 		virtual void OnUpdate(f32 deltaTime) {}
 
 		template<std::derived_from<Layer> T, typename ...Args>

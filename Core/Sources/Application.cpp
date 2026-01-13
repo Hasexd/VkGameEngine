@@ -39,6 +39,11 @@ namespace Core
 
 	Application::~Application()
 	{
+		m_LayerStack.clear();
+
+		m_Renderer->Cleanup();
+		m_Renderer.reset();
+
 		m_Window.Destroy();
 		glfwTerminate();
 		s_Instance = nullptr;
@@ -61,9 +66,18 @@ namespace Core
 				break;
 			}
 
+			int width = 0, height = 0;
+			glfwGetFramebufferSize(m_Window.GetHandle(), &width, &height);
+
+			if (width == 0 || height == 0)
+			{
+				continue;
+			}
+
 			for(const auto& layer : m_LayerStack)
 				layer->OnUpdate(m_DeltaTime);
 
+			m_PreFrameRenderFunction();
 			m_Renderer->BeginFrame();
 			m_Renderer->BeginRenderToTexture();
 
@@ -73,6 +87,10 @@ namespace Core
 			m_Renderer->EndRenderToTexture();
 
 			m_Renderer->BeginRenderToSwapchain();
+
+			for(const auto& layer : m_LayerStack)
+				layer->OnSwapchainRender();
+
 			m_Renderer->EndRenderToSwapchain();
 
 			m_Renderer->EndFrame();

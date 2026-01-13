@@ -42,6 +42,8 @@ namespace Core
 		static i32 GetCursorState();
 		static void SetCursorState(i32 state);
 
+		void SetPreFrameRenderFunction(const std::function<void()>& func) { m_PreFrameRenderFunction = func; };
+
 		void Run();
 		void RaiseEvent(Event& event);
 
@@ -53,6 +55,18 @@ namespace Core
 		template<std::derived_from<Layer> T>
 		T* GetLayer();
 
+		VkInstance GetVulkanInstance() const { return m_Renderer->GetVulkanInstance(); }
+		VkPhysicalDevice GetPhysicalDevice() const { return m_Renderer->GetPhysicalDevice(); }
+		VkDevice GetVulkanDevice() const { return m_Renderer->GetVulkanDevice(); }
+		u32 GetQueueFamily() const { return m_Renderer->GetQueueFamily(); };
+		VkQueue GetGraphicsQueue() const { return m_Renderer->GetGraphicsQueue(); }
+		VkDescriptorPool GetImGuiDescriptorPool() const { return m_Renderer->GetImGuiDescriptorPool(); }
+		u32 GetSwapchainImageCount() const { return m_Renderer->GetSwapchainImageCount(); }
+		VkRenderPass GetRenderPass() const { return m_Renderer->GetRenderPass(); }
+		VkSampler GetRenderTextureSampler() const { return m_Renderer->GetRenderTextureSampler(); }
+		VkImageView GetRenderTextureImageView() const { return m_Renderer->GetRenderTextureImageView(); }
+		VmaAllocator GetVmaAllocator() const { return m_Renderer->GetVmaAllocator(); }
+
 	private:
 		static inline Application* s_Instance = nullptr;
 
@@ -63,6 +77,8 @@ namespace Core
 		std::unique_ptr<Renderer> m_Renderer;
 		std::vector<std::unique_ptr<Layer>> m_LayerStack;
 		std::queue<std::unique_ptr<Event>> m_PostFrameEventQueue;
+
+		std::function<void()> m_PreFrameRenderFunction;
 	};
 
 	template<std::derived_from<Layer> T>

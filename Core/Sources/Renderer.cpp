@@ -70,14 +70,33 @@ namespace Core
 		CreateRP();
 		CreateRenderTextures();
 		CreateGP();
-		CreateBlitPipeline();
 		CreateFramebuffers();
 		CreateCommandPool();
 		CreateCommandBuffers();
 		CreateImmediateCommandResources();
 		CreateSyncObjects();
+		CreateImGuiDescriptorPool();
 
 		TransitionImageLayout(m_RenderTexture.Image, m_RenderTexture.Format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	}
+
+	void Renderer::CreateImGuiDescriptorPool()
+	{
+		VkDescriptorPoolSize poolSizes[] =
+		{
+			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 10 },
+			{ VK_DESCRIPTOR_TYPE_SAMPLER, 10 },
+			{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 10 }
+		};
+
+		VkDescriptorPoolCreateInfo poolInfo = {};
+		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+		poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+		poolInfo.maxSets = 10;
+		poolInfo.poolSizeCount = 3;
+		poolInfo.pPoolSizes = poolSizes;
+
+		vkCreateDescriptorPool(m_CoreData.Device, &poolInfo, nullptr, &m_ImGuiDescriptorPool);
 	}
 
 	void Renderer::InitCoreData()
@@ -151,6 +170,7 @@ namespace Core
 	{
 		m_RenderData.GraphicsQueue = m_CoreData.Device.get_queue(vkb::QueueType::graphics).value();
 		m_RenderData.PresentQueue = m_CoreData.Device.get_queue(vkb::QueueType::present).value();
+		m_RenderData.QueueFamily = m_CoreData.Device.get_queue_index(vkb::QueueType::graphics).value();
 
 		ASSERT(m_RenderData.GraphicsQueue && m_RenderData.PresentQueue);
 	}
@@ -276,30 +296,6 @@ namespace Core
 
 		m_GraphicsShader = CreateShader(m_RenderTextureRenderPass, {}, { pushConstantRange }, &bindingDescription, attributeDescriptions, &viewport, &scissor, "object");
 		UpdateDescriptorSets(m_GraphicsShader);
-	}
-
-	void Renderer::CreateBlitPipeline()
-	{
-
-		VkViewport viewport = {};
-		viewport.x = 0.0f;
-		viewport.y = 0.0f;
-		viewport.width = static_cast<f32>(m_CoreData.Swapchain.extent.width);
-		viewport.height = static_cast<f32>(m_CoreData.Swapchain.extent.height);
-		viewport.minDepth = 0.0f;
-		viewport.maxDepth = 1.0f;
-
-		VkRect2D scissor = {};
-		scissor.offset = { 0, 0 };
-		scissor.extent = m_CoreData.Swapchain.extent;
-
-		std::vector<DescriptorBinding> bindings =
-		{
-			DescriptorBinding(m_RenderTexture, m_RenderTextureSampler, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-		};
-
-		m_BlitShader = CreateShader(m_RenderData.RenderPass, bindings, {}, nullptr, {}, &viewport, &scissor, "blit");
-		UpdateDescriptorSets(m_BlitShader);
 	}
 
 	void Renderer::CreateRenderTextures()
@@ -759,7 +755,6 @@ namespace Core
 		vkDestroyCommandPool(m_CoreData.Device, m_RenderData.CommandPool, nullptr);
 
 		m_GraphicsShader.Destroy(m_CoreData.Device);
-		m_BlitShader.Destroy(m_CoreData.Device);
 
 		vkDestroyRenderPass(m_CoreData.Device, m_RenderData.RenderPass, nullptr);
 		vkDestroyRenderPass(m_CoreData.Device, m_RenderTextureRenderPass, nullptr);
@@ -770,7 +765,6 @@ namespace Core
 		CreateRP();
 		CreateRenderTextures();
 		CreateGP();
-		CreateBlitPipeline();
 		CreateFramebuffers();
 		CreateCommandPool();
 		CreateCommandBuffers();
@@ -985,7 +979,6 @@ namespace Core
 		rpInfo.pClearValues = clearValues.data();
 
 		vkCmdBeginRenderPass(m_CurrentCommandBuffer, &rpInfo, VK_SUBPASS_CONTENTS_INLINE);
-		vkCmdBindPipeline(m_CurrentCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_BlitShader.Pipeline);
 
 		VkViewport viewport = {};
 		viewport.x = 0.0f;
@@ -1009,17 +1002,6 @@ namespace Core
 			LOG_WARN("EndRenderToSwapchain called without frame in progress.");
 			return;
 		}
-
-		vkCmdBindDescriptorSets(
-			m_CurrentCommandBuffer,
-			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			m_BlitShader.PipelineLayout,
-			0, 1,
-			&m_BlitShader.DescriptorSet,
-			0, nullptr
-		);
-
-		vkCmdDraw(m_CurrentCommandBuffer, 3, 1, 0, 0);
 
 		vkCmdEndRenderPass(m_CurrentCommandBuffer);
 	}
@@ -1172,6 +1154,8 @@ namespace Core
 	{
 		vkDeviceWaitIdle(m_CoreData.Device);
 
+		vkDestroyDescriptorPool(m_CoreData.Device, m_ImGuiDescriptorPool, nullptr);
+
 		for (usize i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
 		{
 			vkDestroySemaphore(m_CoreData.Device, m_RenderData.AvailableSemaphores[i], nullptr);
@@ -1190,27 +1174,29 @@ namespace Core
 		{
 			vkDestroyFramebuffer(m_CoreData.Device, framebuffer, nullptr);
 		}
+		vkDestroyFramebuffer(m_CoreData.Device, m_RenderTextureFramebuffer, nullptr);
+
+		m_GraphicsShader.Destroy(m_CoreData.Device);
+
+		vkDestroyRenderPass(m_CoreData.Device, m_RenderData.RenderPass, nullptr);
+		vkDestroyRenderPass(m_CoreData.Device, m_RenderTextureRenderPass, nullptr);
 
 		for (auto imageView : m_RenderData.SwapchainImageViews)
 		{
 			vkDestroyImageView(m_CoreData.Device, imageView, nullptr);
 		}
-
-		vkDestroyFramebuffer(m_CoreData.Device, m_RenderTextureFramebuffer, nullptr);
-
 		vkDestroyImageView(m_CoreData.Device, m_RenderTexture.View, nullptr);
-		vmaDestroyImage(m_Allocator, m_RenderTexture.Image, m_RenderTexture.Allocation);
-
 		vkDestroyImageView(m_CoreData.Device, m_DepthImage.View, nullptr);
-		vmaDestroyImage(m_Allocator, m_DepthImage.Image, m_DepthImage.Allocation);
-
-		m_GraphicsShader.Destroy(m_CoreData.Device);
-		vkDestroyRenderPass(m_CoreData.Device, m_RenderData.RenderPass, nullptr);
 
 		vkDestroySampler(m_CoreData.Device, m_RenderTextureSampler, nullptr);
 
+		vmaDestroyImage(m_Allocator, m_RenderTexture.Image, m_RenderTexture.Allocation);
+		vmaDestroyImage(m_Allocator, m_DepthImage.Image, m_DepthImage.Allocation);
+
 		vkb::destroy_swapchain(m_CoreData.Swapchain);
+
 		vmaDestroyAllocator(m_Allocator);
+
 		vkDestroySurfaceKHR(m_CoreData.Instance, m_CoreData.Surface, nullptr);
 		vkb::destroy_device(m_CoreData.Device);
 		vkb::destroy_instance(m_CoreData.Instance);

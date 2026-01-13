@@ -24,6 +24,7 @@ namespace Core
 	{
 		VkQueue GraphicsQueue;
 		VkQueue PresentQueue;
+		u32 QueueFamily;
 
 		std::vector<VkImage> SwapchainImages;
 		std::vector<VkImageView> SwapchainImageViews;
@@ -111,8 +112,8 @@ namespace Core
 		{
 			vkDestroyPipeline(device, Pipeline, nullptr);
 			vkDestroyPipelineLayout(device, PipelineLayout, nullptr);
-			vkDestroyDescriptorPool(device, DescriptorPool, nullptr);
 			vkDestroyDescriptorSetLayout(device, DescriptorLayout, nullptr);
+			vkDestroyDescriptorPool(device, DescriptorPool, nullptr);
 		}
 	};
 

@@ -6,6 +6,10 @@
 
 #include <GLFW/glfw3.h>
 
+#include <imgui_impl_vulkan.h>
+#include <imgui_impl_glfw.h>
+#include <imgui.h>
+
 #include "Application.h"
 #include "Layer.h"
 #include "ECS.h"
@@ -18,8 +22,10 @@ class Editor : public Core::Layer
 {
 public:
 	Editor();
+	virtual ~Editor() override;
 	virtual void OnEvent(Core::Event& event) override;
 	virtual void OnRender() override;
+	virtual void OnSwapchainRender() override;
 	virtual void OnUpdate(f32 deltaTime) override;
 
 	bool OnMouseButtonPressed(Core::MouseButtonPressedEvent& event);
@@ -28,10 +34,12 @@ public:
 	bool OnKeyReleased(Core::KeyReleasedEvent& event);
 	bool OnWindowResize(Core::WindowResizeEvent& event);
 
-
 	template<std::derived_from<Core::Object> T, typename... Args>
 	T* AddObject(Args&&... args);
 
+private:
+	void InitImGui();
+	void RenderImGui();
 private:
 	Core::ECS m_ECS;
 	Core::Camera m_Camera;
@@ -41,6 +49,8 @@ private:
 
 	std::vector<std::unique_ptr<Core::Object>> m_Objects;
 	std::unordered_set<i32> m_PressedKeys;
+
+	VkDescriptorSet m_RenderTextureDescriptorSet;
 };
 
 template<std::derived_from<Core::Object> T, typename... Args>

@@ -44,13 +44,25 @@ namespace Core
 
 		void SetBackgroundColor(const VkClearColorValue& color) { m_ClearColor = color; };
 
-
 		VkCommandBuffer GetCurrentCommandBuffer() const { return m_CurrentCommandBuffer; }
 		VkPipelineLayout GetGraphicsPipelineLayout() const { return m_GraphicsShader.PipelineLayout; }
 
 		[[nodiscard]] vkb::Device GetDevice() const noexcept { return m_CoreData.Device; }
 
 		MeshBuffers CreateMeshBuffers(const std::vector<Vertex>& vertices, const std::vector<u32>& indices);
+
+		VkInstance GetVulkanInstance() const { return m_CoreData.Instance; }
+		VkPhysicalDevice GetPhysicalDevice() const { return m_CoreData.PhysicalDevice; }
+		VkDevice GetVulkanDevice() const { return m_CoreData.Device; }
+		u32 GetQueueFamily() const { return m_RenderData.QueueFamily; };
+		VkQueue GetGraphicsQueue() const { return m_RenderData.GraphicsQueue; }
+		VkDescriptorPool GetImGuiDescriptorPool() const { return m_ImGuiDescriptorPool; }
+		u32 GetSwapchainImageCount() const { return static_cast<u32>(m_RenderData.SwapchainImages.size()); }
+		VkRenderPass GetRenderPass() const { return m_RenderData.RenderPass; }
+		VkSampler GetRenderTextureSampler() const { return m_RenderTextureSampler; }
+		VkImageView GetRenderTextureImageView() const { return m_RenderTexture.View; }
+		VmaAllocator GetVmaAllocator() const { return m_Allocator; }
+
 	private:
 		void InitCoreData();
 		void CreateSwapchain();
@@ -58,13 +70,13 @@ namespace Core
 		void CreateDepthResources();
 		void CreateRP();
 		void CreateGP();
-		void CreateBlitPipeline();
 		void CreateRenderTextures();
 		void CreateFramebuffers();
 		void CreateCommandPool();
 		void CreateCommandBuffers();
 		void CreateImmediateCommandResources();
 		void CreateSyncObjects();
+		void CreateImGuiDescriptorPool();
 		void RecreateSwapchain();
 
 		void ImmediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
@@ -96,6 +108,8 @@ namespace Core
 		VkCommandBuffer m_CurrentCommandBuffer;
 		u32 m_CurrentImageIndex;
 
+		VkDescriptorPool m_ImGuiDescriptorPool;
+
 		bool m_FrameInProgress = false;
 
 		VkCommandPool m_ImmediateCommandPool;
@@ -104,7 +118,6 @@ namespace Core
 		Image m_DepthImage;
 
 		Shader m_GraphicsShader;
-		Shader m_BlitShader;
 
 		Image m_RenderTexture;
 		VkSampler m_RenderTextureSampler;
@@ -116,6 +129,7 @@ namespace Core
 		VmaAllocator m_Allocator;
 
 		VkClearColorValue m_ClearColor = {0.0f, 0.0f, 0.0f, 1.0f};
+
 	};
 }
 

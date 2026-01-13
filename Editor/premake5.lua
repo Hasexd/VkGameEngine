@@ -13,11 +13,13 @@ project "Editor"
     }
 
     links {
-        "Core"
+        "Core",
+        "ImGui"
     }
 
     includedirs {
         "Headers",
+        "Vendor/ImGui",
         "../Core/Headers",
         "../Core/Vendor/glfw/include",
         "../Core/Vendor/VulkanMemoryAllocator/include",

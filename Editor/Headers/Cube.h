@@ -8,4 +8,6 @@ class Cube : public Core::Object
 {
 public:
 	Cube(Core::ECS& ecs);
+
+	virtual void OnUpdate(float deltaTime) override;
 };
