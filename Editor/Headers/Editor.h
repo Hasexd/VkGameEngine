@@ -21,6 +21,7 @@ public:
 	virtual void OnRender() override;
 	virtual void OnUpdate(f32 deltaTime) override;
 
+	bool OnMouseButtonPressed(Core::MouseButtonPressedEvent& event);
 	bool OnMouseMoved(Core::MouseMovedEvent& event);
 	bool OnKeyPressed(Core::KeyPressedEvent& event);
 	bool OnKeyReleased(Core::KeyReleasedEvent& event);

@@ -38,7 +38,10 @@ namespace Core
 		static MeshBuffers CreateMeshBuffers(const std::vector<Vertex>& vertices, const std::vector<u32>& indices);
 		static Mesh CreateMeshFromOBJ(const std::string& objName);
 
-		static void SetInputMode(i32 mode);
+		static void SetBackgroundColor(const VkClearColorValue& color);
+
+		static i32 GetCursorState();
+		static void SetCursorState(i32 state);
 
 		void Run();
 		void RaiseEvent(Event& event);

@@ -42,6 +42,9 @@ namespace Core
 		void BeginRenderToSwapchain();
 		void EndRenderToSwapchain();
 
+		void SetBackgroundColor(const VkClearColorValue& color) { m_ClearColor = color; };
+
+
 		VkCommandBuffer GetCurrentCommandBuffer() const { return m_CurrentCommandBuffer; }
 		VkPipelineLayout GetGraphicsPipelineLayout() const { return m_GraphicsShader.PipelineLayout; }
 
@@ -111,6 +114,8 @@ namespace Core
 		u32 m_RenderTextureHeight;
 
 		VmaAllocator m_Allocator;
+
+		VkClearColorValue m_ClearColor = {0.0f, 0.0f, 0.0f, 1.0f};
 	};
 }
 

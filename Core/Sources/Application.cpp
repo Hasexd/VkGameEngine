@@ -80,11 +80,6 @@ namespace Core
 		vkDeviceWaitIdle(m_Renderer->GetDevice());
 	}
 
-	void Application::SetInputMode(i32 mode)
-	{
-		glfwSetInputMode(s_Instance->m_Window.GetHandle(), GLFW_CURSOR, mode);
-	}
-
 	void Application::RaiseEvent(Event& event)
 	{
 		for (auto& layer : std::views::reverse(m_LayerStack))
@@ -110,6 +105,16 @@ namespace Core
 		return s_Instance->m_Window;
 	}
 
+	void Application::SetCursorState(i32 state)
+	{
+		glfwSetInputMode(s_Instance->m_Window.GetHandle(), GLFW_CURSOR, state);
+	}
+	
+	i32 Application::GetCursorState()
+	{
+		return glfwGetInputMode(s_Instance->m_Window.GetHandle(), GLFW_CURSOR);
+	}
+
 	VkCommandBuffer Application::GetCurrentCommandBuffer()
 	{
 		return s_Instance->m_Renderer->GetCurrentCommandBuffer();
@@ -123,6 +128,11 @@ namespace Core
 	std::vector<std::unique_ptr<Layer>>& Application::GetLayerStack()
 	{
 		return s_Instance->m_LayerStack;
+	}
+
+	void Application::SetBackgroundColor(const VkClearColorValue& color)
+	{
+		s_Instance->m_Renderer->SetBackgroundColor(color);
 	}
 
 	MeshBuffers Application::CreateMeshBuffers(const std::vector<Vertex>& vertices, const std::vector<u32>& indices)
