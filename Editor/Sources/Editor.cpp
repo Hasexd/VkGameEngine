@@ -43,6 +43,9 @@ void Editor::OnRender()
 
 void Editor::OnUpdate(f32 deltaTime)
 {
+	if (!glfwGetWindowAttrib(Core::Application::GetWindow().GetHandle(), GLFW_FOCUSED))
+		return;
+
 	if (m_PressedKeys.count(GLFW_KEY_W))
 		m_Camera.Move(m_Camera.Front, deltaTime);
 	if (m_PressedKeys.count(GLFW_KEY_S))
@@ -105,5 +108,6 @@ bool Editor::OnMouseButtonPressed(Core::MouseButtonPressedEvent& event)
 bool Editor::OnWindowResize(Core::WindowResizeEvent& event)
 {
 	m_Camera.AspectRatio = static_cast<f32>(event.GetWidth()) / static_cast<f32>(event.GetHeight());
+	m_PressedKeys.clear();
 	return true;
 }

@@ -335,7 +335,7 @@ namespace Core
 
 		VkFramebufferCreateInfo framebufferInfo = {};
 		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebufferInfo.renderPass = m_RenderData.RenderPass;
+		framebufferInfo.renderPass = m_RenderTextureRenderPass;
 		framebufferInfo.attachmentCount = attachments.size();
 		framebufferInfo.pAttachments = attachments.data();
 		framebufferInfo.width = m_RenderTextureWidth;
@@ -732,27 +732,51 @@ namespace Core
 	{
 		vkDeviceWaitIdle(m_CoreData.Device);
 
-		vkDestroyImageView(m_CoreData.Device, m_DepthImage.View, nullptr);
-		vmaDestroyImage(m_Allocator, m_DepthImage.Image, m_DepthImage.Allocation);
-
-		vkDestroyCommandPool(m_CoreData.Device, m_RenderData.CommandPool, nullptr);
-
 		for (auto framebuffer : m_RenderData.Framebuffers)
 		{
 			vkDestroyFramebuffer(m_CoreData.Device, framebuffer, nullptr);
 		}
+		m_RenderData.Framebuffers.clear();
 
 		for (auto imageView : m_RenderData.SwapchainImageViews)
 		{
 			vkDestroyImageView(m_CoreData.Device, imageView, nullptr);
 		}
+		m_RenderData.SwapchainImageViews.clear();
+
+		vkDestroyFramebuffer(m_CoreData.Device, m_RenderTextureFramebuffer, nullptr);
+		vkDestroyImageView(m_CoreData.Device, m_RenderTexture.View, nullptr);
+		vmaDestroyImage(m_Allocator, m_RenderTexture.Image, m_RenderTexture.Allocation);
+
+		vkDestroyImageView(m_CoreData.Device, m_DepthImage.View, nullptr);
+		vmaDestroyImage(m_Allocator, m_DepthImage.Image, m_DepthImage.Allocation);
+
+		vkFreeCommandBuffers(m_CoreData.Device, m_RenderData.CommandPool,
+			static_cast<uint32_t>(m_RenderData.CommandBuffers.size()),
+			m_RenderData.CommandBuffers.data());
+		m_RenderData.CommandBuffers.clear();
+
+		vkDestroyCommandPool(m_CoreData.Device, m_RenderData.CommandPool, nullptr);
+
+		m_GraphicsShader.Destroy(m_CoreData.Device);
+		m_BlitShader.Destroy(m_CoreData.Device);
+
+		vkDestroyRenderPass(m_CoreData.Device, m_RenderData.RenderPass, nullptr);
+		vkDestroyRenderPass(m_CoreData.Device, m_RenderTextureRenderPass, nullptr);
 
 		CreateSwapchain();
+		GetQueues();
 		CreateDepthResources();
+		CreateRP();
 		CreateRenderTextures();
+		CreateGP();
+		CreateBlitPipeline();
 		CreateFramebuffers();
 		CreateCommandPool();
 		CreateCommandBuffers();
+
+		TransitionImageLayout(m_RenderTexture.Image, m_RenderTexture.Format,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	}
 
 	void Renderer::ImmediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function)
@@ -789,11 +813,13 @@ namespace Core
 		if (result == VK_ERROR_OUT_OF_DATE_KHR)
 		{
 			RecreateSwapchain();
+			m_FrameInProgress = false;
 			return;
 		}
 		if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
 		{
-			LOG_CRITICAL("Failed to acquire swapchain image!");
+			LOG_CRITICAL("Failed to acquire swapchain image!: {}", static_cast<u32>(result));
+			m_FrameInProgress = false;
 			return;
 		}
 
@@ -815,8 +841,11 @@ namespace Core
 
 	void Renderer::EndFrame()
 	{
-		if (!m_FrameInProgress) 
+		if (!m_FrameInProgress)
+		{
+			LOG_WARN("EndFrame called without frame in progress.");
 			return;
+		}
 
 		vkEndCommandBuffer(m_CurrentCommandBuffer);
 
@@ -865,8 +894,11 @@ namespace Core
 
 	void Renderer::BeginRenderToTexture()
 	{
-		if (!m_FrameInProgress) 
+		if (!m_FrameInProgress)
+		{
+			LOG_WARN("BeginRenderToTexture called without frame in progress.");
 			return;
+		}
 
 		std::array<VkClearValue, 2> clearValues = {};
 		clearValues[0].color = { m_ClearColor };
@@ -902,7 +934,10 @@ namespace Core
 	void Renderer::EndRenderToTexture()
 	{
 		if (!m_FrameInProgress)
+		{
+			LOG_WARN("EndRenderToTexture called without frame in progress.");
 			return;
+		}
 
 		vkCmdEndRenderPass(m_CurrentCommandBuffer);
 
@@ -930,8 +965,11 @@ namespace Core
 
 	void Renderer::BeginRenderToSwapchain()
 	{
-		if (!m_FrameInProgress) 
+		if (!m_FrameInProgress)
+		{
+			LOG_WARN("BeginRenderToSwapchain called without frame in progress.");
 			return;
+		}
 
 		std::array<VkClearValue, 2> clearValues = {};
 		clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
@@ -966,8 +1004,11 @@ namespace Core
 
 	void Renderer::EndRenderToSwapchain()
 	{
-		if (!m_FrameInProgress) 
+		if (!m_FrameInProgress)
+		{
+			LOG_WARN("EndRenderToSwapchain called without frame in progress.");
 			return;
+		}
 
 		vkCmdBindDescriptorSets(
 			m_CurrentCommandBuffer,
