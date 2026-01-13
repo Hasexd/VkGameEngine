@@ -12,6 +12,7 @@
 #include "Camera.h"
 #include "Object.h"
 #include "Mesh.h"
+#include "Cube.h"
 
 class Editor : public Core::Layer
 {
@@ -25,10 +26,11 @@ public:
 	bool OnMouseMoved(Core::MouseMovedEvent& event);
 	bool OnKeyPressed(Core::KeyPressedEvent& event);
 	bool OnKeyReleased(Core::KeyReleasedEvent& event);
+	bool OnWindowResize(Core::WindowResizeEvent& event);
 
 
-	std::shared_ptr<Core::Object> AddObject();
-	void CreateMesh(const std::shared_ptr<Core::Object>& obj, const std::vector<Core::Vertex>& vertices, const std::vector<u32>& indices);
+	template<std::derived_from<Core::Object> T, typename... Args>
+	T* AddObject(Args&&... args);
 
 private:
 	Core::ECS m_ECS;
@@ -37,6 +39,13 @@ private:
 	f64 m_LastMouseX = 0.0;
 	f64 m_LastMouseY = 0.0;
 
-	std::vector<std::shared_ptr<Core::Object>> m_Objects;
+	std::vector<std::unique_ptr<Core::Object>> m_Objects;
 	std::unordered_set<i32> m_PressedKeys;
 };
+
+template<std::derived_from<Core::Object> T, typename... Args>
+T* Editor::AddObject(Args&&... args)
+{
+	auto& ptr = m_Objects.emplace_back(std::make_unique<T>(m_ECS, std::forward<Args>(args)...));
+	return static_cast<T*>(ptr.get());
+}

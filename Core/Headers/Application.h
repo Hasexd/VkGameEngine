@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <ranges>
+#include <queue>
 
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
@@ -33,8 +34,6 @@ namespace Core
 		static VkCommandBuffer GetCurrentCommandBuffer();
 		static VkPipelineLayout GetGraphicsPipelineLayout();
 
-		static std::vector<std::unique_ptr<Layer>>& GetLayerStack();
-
 		static MeshBuffers CreateMeshBuffers(const std::vector<Vertex>& vertices, const std::vector<u32>& indices);
 		static Mesh CreateMeshFromOBJ(const std::string& objName);
 
@@ -45,6 +44,8 @@ namespace Core
 
 		void Run();
 		void RaiseEvent(Event& event);
+
+		void QueuePostFrameEvent(std::unique_ptr<Event> event);
 
 		template<std::derived_from<Layer> T>
 		void PushLayer();
@@ -61,6 +62,7 @@ namespace Core
 		Window m_Window;
 		std::unique_ptr<Renderer> m_Renderer;
 		std::vector<std::unique_ptr<Layer>> m_LayerStack;
+		std::queue<std::unique_ptr<Event>> m_PostFrameEventQueue;
 	};
 
 	template<std::derived_from<Layer> T>

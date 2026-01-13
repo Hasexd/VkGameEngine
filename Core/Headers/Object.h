@@ -10,6 +10,7 @@ namespace Core
 	{
 	public:
 		Object(ECS& ecs);
+		virtual ~Object() = default;
 
 		template<std::derived_from<Component> T, typename... Args>
 		void AddComponent(Args&&... args);

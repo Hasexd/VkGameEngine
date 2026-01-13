@@ -76,18 +76,45 @@ namespace Core
 			m_Renderer->EndRenderToSwapchain();
 
 			m_Renderer->EndFrame();
+
+			while (!m_PostFrameEventQueue.empty())
+			{
+				auto& event = m_PostFrameEventQueue.front();
+				RaiseEvent(*event);
+				m_PostFrameEventQueue.pop();
+			}
 		}
 		vkDeviceWaitIdle(m_Renderer->GetDevice());
 	}
 
 	void Application::RaiseEvent(Event& event)
 	{
+		EventDispatcher dispatcher(event);
+
+		dispatcher.Dispatch<TransitionLayerEvent>([this](TransitionLayerEvent& e) 
+		{
+			for (auto& layer : m_LayerStack)
+			{
+				if (layer.get() == e.GetFromLayer())
+				{
+					layer = e.Transition();
+					return true;
+				}
+			}
+			return false;
+			});
+
 		for (auto& layer : std::views::reverse(m_LayerStack))
 		{
 			layer->OnEvent(event);
 			if (event.Handled)
 				break;
 		}
+	}
+
+	void Application::QueuePostFrameEvent(std::unique_ptr<Event> event)
+	{
+		m_PostFrameEventQueue.push(std::move(event));
 	}
 
 	Application& Application::Get()
@@ -123,11 +150,6 @@ namespace Core
 	VkPipelineLayout Application::GetGraphicsPipelineLayout()
 	{
 		return s_Instance->m_Renderer->GetGraphicsPipelineLayout();
-	}
-
-	std::vector<std::unique_ptr<Layer>>& Application::GetLayerStack()
-	{
-		return s_Instance->m_LayerStack;
 	}
 
 	void Application::SetBackgroundColor(const VkClearColorValue& color)

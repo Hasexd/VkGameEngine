@@ -2,18 +2,14 @@
 
 Editor::Editor()
 {
-	auto obj = AddObject();
-	obj->GetComponent<Core::Transform>()->Position = { 0.0f, 0.0f, -3.0f };
-	obj->AddComponent<Core::Mesh>();
-
-	Core::Mesh* mesh = obj->GetComponent<Core::Mesh>();
-	*mesh = Core::Application::CreateMeshFromOBJ("Cube.obj");
+	auto obj = AddObject<Cube>();
+	obj->GetComponent<Core::Transform>()->Position = { 0.0f, 0.0f, -5.0f };
 
 	glm::vec2 framebufferSize = Core::Application::GetWindow().GetFramebufferSize();
-
 	m_Camera.AspectRatio = static_cast<f32>(framebufferSize.x) / static_cast<f32>(framebufferSize.y);
 
 	Core::Application::Get().SetCursorState(GLFW_CURSOR_DISABLED);
+	Core::Application::Get().SetBackgroundColor({0.0f, 0.0f, 0.0f, 1.0f});
 }
 
 void Editor::OnEvent(Core::Event& event)
@@ -24,6 +20,7 @@ void Editor::OnEvent(Core::Event& event)
 	dispatcher.Dispatch<Core::MouseButtonPressedEvent>([this](Core::MouseButtonPressedEvent& e) { return OnMouseButtonPressed(e); });
 	dispatcher.Dispatch<Core::KeyPressedEvent>([this](Core::KeyPressedEvent& e) { return OnKeyPressed(e); });
 	dispatcher.Dispatch<Core::KeyReleasedEvent>([this](Core::KeyReleasedEvent& e) { return OnKeyReleased(e); });
+	dispatcher.Dispatch<Core::WindowResizeEvent>([this](Core::WindowResizeEvent& e) { return OnWindowResize(e); });
 }
 
 void Editor::OnRender()
@@ -105,12 +102,8 @@ bool Editor::OnMouseButtonPressed(Core::MouseButtonPressedEvent& event)
 	return false;
 }
 
-std::shared_ptr<Core::Object> Editor::AddObject()
+bool Editor::OnWindowResize(Core::WindowResizeEvent& event)
 {
-	return m_Objects.emplace_back(std::make_shared<Core::Object>(m_ECS));
-}
-
-void Editor::CreateMesh(const std::shared_ptr<Core::Object>& obj, const std::vector<Core::Vertex>& vertices, const std::vector<u32>& indices)
-{
-	obj->AddComponent<Core::Mesh>(Core::Application::Get().CreateMeshBuffers(vertices, indices));
+	m_Camera.AspectRatio = static_cast<f32>(event.GetWidth()) / static_cast<f32>(event.GetHeight());
+	return true;
 }
