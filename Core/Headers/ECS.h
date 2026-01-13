@@ -2,7 +2,7 @@
 
 #include <unordered_map>
 #include <vector>
-#include <type_traits>
+#include <concepts>
 
 #include "UUID.h"
 #include "Types.h"
@@ -17,28 +17,23 @@ namespace Core
 	public:
 		UUID CreateEntity();
 
-		template<typename T, typename... Args>
-		requires(std::is_base_of_v<Component, T>)
+		template<std::derived_from<Component> T, typename... Args>
 		void AddComponent(const UUID& entity, Args&&... args);
 
-		template<typename T>
-		requires(std::is_base_of_v<Component, T>)
+		template<std::derived_from<Component> T>
 		bool HasComponent(const UUID& entity);
 
-		template<typename... Ts>
-		requires((std::is_base_of_v<Component, Ts> && ...))
+		template<std::derived_from<Component>... Ts>
 		bool HasComponents(const UUID& entity);
 
-		template<typename T>
-		requires(std::is_base_of_v<Component, T>)
+		template<std::derived_from<Component> T>
 		T* GetComponent(const UUID& entity);
 
 	private:
 		std::unordered_map<UUID, std::vector<std::unique_ptr<Component>>> m_Entities;
  	};
 
-	template<typename T, typename... Args>
-	requires(std::is_base_of_v<Component, T>)
+	template<std::derived_from<Component> T, typename... Args>
 	void ECS::AddComponent(const UUID& entity, Args&&... args)
 	{
 		auto it = m_Entities.find(entity);
@@ -58,8 +53,7 @@ namespace Core
 		it->second.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
 	}
 
-	template<typename T>
-	requires(std::is_base_of_v<Component, T>)
+	template<std::derived_from<Component> T>
 	bool ECS::HasComponent(const UUID& entity)
 	{
 		auto it = m_Entities.find(entity);
@@ -81,15 +75,13 @@ namespace Core
 		return false;
 	}
 
-	template<typename... Ts>
-	requires((std::is_base_of_v<Component, Ts> && ...))
+	template<std::derived_from<Component>... Ts>
 	bool HasComponents(const UUID& entity)
 	{
 		return (HasComponent<Ts>(entity) && ...);
 	}
 
-	template<typename T>
-	requires(std::is_base_of_v<Component, T>)
+	template<std::derived_from<Component> T>
 	T* ECS::GetComponent(const UUID& entity)
 	{
 		auto it = m_Entities.find(entity);

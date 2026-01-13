@@ -20,12 +20,12 @@ namespace Core
 		return proj;
 	}
 
-	void Camera::Move(const glm::vec3& direction, float deltaTime)
+	void Camera::Move(const glm::vec3& direction, f32 deltaTime)
 	{
 		Position += direction * m_Speed * deltaTime;
 	}
 
-	void Camera::Rotate(double xOffset, double yOffset, double deltaTime)
+	void Camera::Rotate(f32 xOffset, f32 yOffset, f32 deltaTime)
 	{
 		m_Yaw += xOffset * m_Sensitivity * deltaTime;
 		m_Pitch -= yOffset * m_Sensitivity * deltaTime;

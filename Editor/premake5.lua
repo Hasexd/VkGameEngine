@@ -17,6 +17,7 @@ project "Editor"
     }
 
     includedirs {
+        "Headers",
         "../Core/Headers",
         "../Core/Vendor/glfw/include",
         "../Core/Vendor/VulkanMemoryAllocator/include",

@@ -11,20 +11,16 @@ namespace Core
 	public:
 		Object(ECS& ecs);
 
-		template<typename T, typename... Args>
-		requires(std::is_base_of_v<Component, T>)
+		template<std::derived_from<Component> T, typename... Args>
 		void AddComponent(Args&&... args);
 
-		template<typename T>
-		requires(std::is_base_of_v<Component, T>)
+		template<std::derived_from<Component> T>
 		bool HasComponent();
 
-		template<typename... Ts>
-		requires((std::is_base_of_v<Component, Ts> && ...))
+		template<std::derived_from<Component>... Ts>
 		bool HasComponents();
 
-		template<typename T>
-		requires(std::is_base_of_v<Component, T>)
+		template<std::derived_from<Component> T>
 		T* GetComponent();
 
 		void Draw(VkCommandBuffer cmd);
@@ -34,29 +30,25 @@ namespace Core
 		ECS& m_ECS;
 	};
 
-	template<typename T, typename... Args>
-	requires(std::is_base_of_v<Component, T>)
+	template<std::derived_from<Component> T, typename... Args>
 	void Object::AddComponent(Args&&... args)
 	{
 		m_ECS.AddComponent<T>(m_ID, std::forward<Args>(args)...);
 	}
 
-	template<typename T>
-	requires(std::is_base_of_v<Component, T>)
+	template<std::derived_from<Component> T>
 	bool Object::HasComponent()
 	{
 		return m_ECS.HasComponent<T>(m_ID);
 	}
 
-	template<typename... Ts>
-	requires((std::is_base_of_v<Component, Ts> && ...))
+	template<std::derived_from<Component>... Ts>
 	bool Object::HasComponents()
 	{
 		return m_ECS.HasComponents<Ts...>(m_ID);
 	}
 
-	template<typename T>
-	requires(std::is_base_of_v<Component, T>)
+	template<std::derived_from<Component> T>
 	T* Object::GetComponent()
 	{
 		return m_ECS.GetComponent<T>(m_ID);

@@ -14,6 +14,7 @@ namespace Core
 		m_Window(nullptr, glfwDestroyWindow),
 		m_Renderer(std::make_unique<Renderer>())
 	{
+		s_Instance = this;
 		glfwSetErrorCallback(GLFWErrorCallback);
 
 		bool ok = glfwInit();
@@ -34,79 +35,108 @@ namespace Core
 
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		m_Window.reset(glfwCreateWindow(static_cast<int>(width), static_cast<int>(height), title.c_str(), nullptr, nullptr));
-		glfwSetWindowUserPointer(m_Window.get(), this);
 
 		ASSERT(m_Window);
 
 		m_Renderer->Init(m_Window.get());
 
-		m_Camera.AspectRatio = static_cast<f32>(width) / static_cast<f32>(height);
-
-		objl::Loader loader;
-		std::filesystem::path objPath = std::filesystem::path(PATH_TO_OBJS) / "Cube.obj";
-
-		loader.LoadFile(objPath.string());
-
-
-		auto obj = AddObject();
-		obj->GetComponent<Transform>()->Position = {0.0f, 0.0f, -3.0f};
-		CreateMesh(obj, loader.LoadedVertices, loader.LoadedIndices);
 	}
 
 	Application::~Application()
 	{
 		m_Window.reset();
 		glfwTerminate();
+		s_Instance = nullptr;
 	}
 
 	void Application::Run()
 	{
-		glfwSetCursorPosCallback(m_Window.get(), [](GLFWwindow* window, double xpos, double ypos)
-		{
-			static double lastX = xpos;
-			static double lastY = ypos;
-			double xOffset = xpos - lastX;
-			double yOffset = ypos - lastY;
-			lastX = xpos;
-			lastY = ypos;
-			Application* app = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
-			app->m_Camera.Rotate(xOffset, yOffset, app->m_DeltaTime);
-		});
-
 		glfwSetInputMode(m_Window.get(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-		double lastFrame = glfwGetTime();
-		while (!glfwWindowShouldClose(m_Window.get()))
+		f32 lastFrame = glfwGetTime();
+		while (m_Running)
 		{
-			double currentFrame = glfwGetTime();
-			m_DeltaTime = currentFrame - lastFrame;
+			f32 currentFrame = glfwGetTime();
+			m_DeltaTime = glm::clamp(currentFrame - lastFrame, 0.001f, 0.1f);
 			lastFrame = currentFrame;
 
 			glfwPollEvents();
 
-			if(glfwGetKey(m_Window.get(), GLFW_KEY_W) == GLFW_PRESS)
-				m_Camera.Move(m_Camera.Front, m_DeltaTime);
-			if (glfwGetKey(m_Window.get(), GLFW_KEY_S) == GLFW_PRESS)
-				m_Camera.Move(-m_Camera.Front, m_DeltaTime);
-			if (glfwGetKey(m_Window.get(), GLFW_KEY_A) == GLFW_PRESS)
-				m_Camera.Move(-m_Camera.Right, m_DeltaTime);
-			if (glfwGetKey(m_Window.get(), GLFW_KEY_D) == GLFW_PRESS)
-				m_Camera.Move(m_Camera.Right, m_DeltaTime);
-			if (glfwGetKey(m_Window.get(), GLFW_KEY_ESCAPE) == GLFW_PRESS)
-				glfwSetInputMode(m_Window.get(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+			if (glfwWindowShouldClose(m_Window.get()))
+			{
+				m_Running = false;
+				break;
+			}
 
-			m_Renderer->DrawFrame(m_Objects, m_Camera);
+			for(const auto& layer : m_LayerStack)
+				layer->OnUpdate(m_DeltaTime);
+
+
+			m_Renderer->BeginFrame();
+			m_Renderer->BeginRenderToTexture();
+
+			for(const auto& layer : m_LayerStack)
+				layer->OnRender();
+
+			m_Renderer->EndRenderToTexture();
+
+			m_Renderer->BeginRenderToSwapchain();
+			m_Renderer->EndRenderToSwapchain();
+
+			m_Renderer->EndFrame();
 		}
 		vkDeviceWaitIdle(m_Renderer->GetDevice());
 	}
 
-	std::shared_ptr<Object> Application::AddObject()
+	Application& Application::Get()
 	{
-		return m_Objects.emplace_back(std::make_shared<Object>(m_ECS));
+		return *s_Instance;
 	}
 
-	void Application::CreateMesh(const std::shared_ptr<Object>& obj, const std::vector<Vertex>& vertices, const std::vector<u32>& indices)
+	f32 Application::GetDeltaTime()
 	{
-		obj->AddComponent<Mesh>(m_Renderer->CreateMeshBuffers(vertices, indices));
+		return s_Instance ? s_Instance->m_DeltaTime : 0.0;
+	}
+
+	GLFWwindow* Application::GetWindow()
+	{
+		return s_Instance->m_Window.get();
+	}
+
+	glm::vec2 Application::GetFramebufferSize()
+	{
+		int width, height;
+		glfwGetFramebufferSize(s_Instance->m_Window.get(), &width, &height);
+		return { static_cast<f32>(width), static_cast<f32>(height) };
+	}
+
+	VkCommandBuffer Application::GetCurrentCommandBuffer()
+	{
+		return s_Instance->m_Renderer->GetCurrentCommandBuffer();
+	}
+
+	VkPipelineLayout Application::GetGraphicsPipelineLayout()
+	{
+		return s_Instance->m_Renderer->GetGraphicsPipelineLayout();
+	}
+
+	std::vector<std::unique_ptr<Layer>>& Application::GetLayerStack()
+	{
+		return s_Instance->m_LayerStack;
+	}
+
+	MeshBuffers Application::CreateMeshBuffers(const std::vector<Vertex>& vertices, const std::vector<u32>& indices)
+	{
+		return s_Instance->m_Renderer->CreateMeshBuffers(vertices, indices);
+	}
+
+	Mesh Application::CreateMeshFromOBJ(const std::string& objName)
+	{
+		objl::Loader loader;
+		std::filesystem::path objPath = std::filesystem::path(PATH_TO_OBJS) / objName;
+		loader.LoadFile(objPath.string());
+
+		MeshBuffers buffers = CreateMeshBuffers(loader.LoadedVertices, loader.LoadedIndices);
+		return Mesh(buffers);
 	}
 }

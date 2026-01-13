@@ -777,13 +777,14 @@ namespace Core
 
 	}
 
-	void Renderer::DrawFrame(const std::vector<std::shared_ptr<Object>>& objects, const Camera& camera)
+	void Renderer::BeginFrame()
 	{
 		vkWaitForFences(m_CoreData.Device, 1, &m_RenderData.InFlightFences[m_RenderData.CurrentFrame], VK_TRUE, UINT64_MAX);
 
-		u32 imageIndex = 0;
 		VkResult result = vkAcquireNextImageKHR(
-			m_CoreData.Device, m_CoreData.Swapchain, UINT64_MAX, m_RenderData.AvailableSemaphores[m_RenderData.CurrentFrame], VK_NULL_HANDLE, &imageIndex);
+			m_CoreData.Device, m_CoreData.Swapchain, UINT64_MAX,
+			m_RenderData.AvailableSemaphores[m_RenderData.CurrentFrame],
+			VK_NULL_HANDLE, &m_CurrentImageIndex);
 
 		if (result == VK_ERROR_OUT_OF_DATE_KHR)
 		{
@@ -796,72 +797,114 @@ namespace Core
 			return;
 		}
 
-		if (m_RenderData.ImagesInFlight[imageIndex] != VK_NULL_HANDLE)
+		if (m_RenderData.ImagesInFlight[m_CurrentImageIndex] != VK_NULL_HANDLE)
 		{
-			vkWaitForFences(m_CoreData.Device, 1, &m_RenderData.ImagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
+			vkWaitForFences(m_CoreData.Device, 1, &m_RenderData.ImagesInFlight[m_CurrentImageIndex], VK_TRUE, UINT64_MAX);
 		}
+		m_RenderData.ImagesInFlight[m_CurrentImageIndex] = m_RenderData.InFlightFences[m_RenderData.CurrentFrame];
 
-		m_RenderData.ImagesInFlight[imageIndex] = m_RenderData.InFlightFences[m_RenderData.CurrentFrame];
-
-		VkCommandBuffer& cmd = m_RenderData.CommandBuffers[imageIndex];
-
-		vkResetCommandBuffer(cmd, 0);
+		m_CurrentCommandBuffer = m_RenderData.CommandBuffers[m_CurrentImageIndex];
+		vkResetCommandBuffer(m_CurrentCommandBuffer, 0);
 
 		VkCommandBufferBeginInfo beginInfo = {};
 		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		vkBeginCommandBuffer(m_CurrentCommandBuffer, &beginInfo);
 
-		vkBeginCommandBuffer(cmd, &beginInfo);
+		m_FrameInProgress = true;
+	}
+
+	void Renderer::EndFrame()
+	{
+		if (!m_FrameInProgress) 
+			return;
+
+		vkEndCommandBuffer(m_CurrentCommandBuffer);
+
+		std::array waitSemaphores = { m_RenderData.AvailableSemaphores[m_RenderData.CurrentFrame] };
+		std::array waitStages = { static_cast<VkPipelineStageFlags>(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT) };
+
+		VkSubmitInfo submitInfo = {};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.waitSemaphoreCount = 1;
+		submitInfo.pWaitSemaphores = waitSemaphores.data();
+		submitInfo.pWaitDstStageMask = waitStages.data();
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &m_CurrentCommandBuffer;
+
+		std::array signalSemaphores = { m_RenderData.FinishedSemaphores[m_CurrentImageIndex] };
+		submitInfo.signalSemaphoreCount = 1;
+		submitInfo.pSignalSemaphores = signalSemaphores.data();
+
+		vkResetFences(m_CoreData.Device, 1, &m_RenderData.InFlightFences[m_RenderData.CurrentFrame]);
+		vkQueueSubmit(m_RenderData.GraphicsQueue, 1, &submitInfo, m_RenderData.InFlightFences[m_RenderData.CurrentFrame]);
+
+		VkPresentInfoKHR presentInfo = {};
+		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+		presentInfo.waitSemaphoreCount = 1;
+		presentInfo.pWaitSemaphores = signalSemaphores.data();
+
+		std::array swapchains = { static_cast<VkSwapchainKHR>(m_CoreData.Swapchain) };
+		presentInfo.swapchainCount = 1;
+		presentInfo.pSwapchains = swapchains.data();
+		presentInfo.pImageIndices = &m_CurrentImageIndex;
+
+		VkResult result = vkQueuePresentKHR(m_RenderData.PresentQueue, &presentInfo);
+
+		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+		{
+			RecreateSwapchain();
+		}
+		else if (result != VK_SUCCESS)
+		{
+			LOG_CRITICAL("Failed to present swapchain image!");
+		}
+
+		m_RenderData.CurrentFrame = (m_RenderData.CurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+		m_FrameInProgress = false;
+	}
+
+	void Renderer::BeginRenderToTexture()
+	{
+		if (!m_FrameInProgress) 
+			return;
 
 		std::array<VkClearValue, 2> clearValues = {};
 		clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
 		clearValues[1].depthStencil = { 1.0f, 0 };
 
-		// render to texture
+		VkRenderPassBeginInfo rpInfo = {};
+		rpInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		rpInfo.renderPass = m_RenderTextureRenderPass;
+		rpInfo.framebuffer = m_RenderTextureFramebuffer;
+		rpInfo.renderArea.offset = { 0, 0 };
+		rpInfo.renderArea.extent = { m_RenderTextureWidth, m_RenderTextureHeight };
+		rpInfo.clearValueCount = static_cast<u32>(clearValues.size());
+		rpInfo.pClearValues = clearValues.data();
 
-		VkRenderPassBeginInfo textureRPInfo = {};
-		textureRPInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		textureRPInfo.renderPass = m_RenderTextureRenderPass;
-		textureRPInfo.framebuffer = m_RenderTextureFramebuffer;
-		textureRPInfo.renderArea.offset = { 0, 0 };
-		textureRPInfo.renderArea.extent = m_CoreData.Swapchain.extent;
-		textureRPInfo.clearValueCount = static_cast<u32>(clearValues.size());
-		textureRPInfo.pClearValues = clearValues.data();
-
-		vkCmdBeginRenderPass(cmd, &textureRPInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBeginRenderPass(m_CurrentCommandBuffer, &rpInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBindPipeline(m_CurrentCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsShader.Pipeline);
 
 		VkViewport viewport = {};
 		viewport.x = 0.0f;
 		viewport.y = 0.0f;
-		viewport.width = m_RenderTextureWidth;
-		viewport.height = m_RenderTextureHeight;
+		viewport.width = static_cast<f32>(m_RenderTextureWidth);
+		viewport.height = static_cast<f32>(m_RenderTextureHeight);
 		viewport.minDepth = 0.0f;
 		viewport.maxDepth = 1.0f;
-		vkCmdSetViewport(cmd, 0, 1, &viewport);
+		vkCmdSetViewport(m_CurrentCommandBuffer, 0, 1, &viewport);
 
 		VkRect2D scissor = {};
 		scissor.offset = { 0, 0 };
 		scissor.extent = { m_RenderTextureWidth, m_RenderTextureHeight };
-		vkCmdSetScissor(cmd, 0, 1, &scissor);
+		vkCmdSetScissor(m_CurrentCommandBuffer, 0, 1, &scissor);
+	}
 
-		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsShader.Pipeline);
+	void Renderer::EndRenderToTexture()
+	{
+		if (!m_FrameInProgress)
+			return;
 
-		for (const auto& obj : objects)
-		{
-
-			if (obj->HasComponent<Mesh>())
-			{
-				MVP mvp = {};
-				mvp.View = camera.GetViewMatrix();
-				mvp.Projection = camera.GetProjectionMatrix();
-				mvp.Model = obj->GetComponent<Transform>()->GetModelMatrix();
-
-				vkCmdPushConstants(cmd, m_GraphicsShader.PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MVP), &mvp);
-
-				obj->Draw(cmd);
-			}
-		}
-
-		vkCmdEndRenderPass(cmd);
+		vkCmdEndRenderPass(m_CurrentCommandBuffer);
 
 		VkImageMemoryBarrier barrier = {};
 		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -879,81 +922,65 @@ namespace Core
 		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
 		vkCmdPipelineBarrier(
-			cmd,
+			m_CurrentCommandBuffer,
 			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-			0,
-			0, nullptr,
-			0, nullptr,
-			1, &barrier
-		);
+			0, 0, nullptr, 0, nullptr, 1, &barrier);
+	}
 
-		// render to swapchain
-		VkRenderPassBeginInfo swapchainRPInfo = {};
-		swapchainRPInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		swapchainRPInfo.renderPass = m_RenderData.RenderPass;
-		swapchainRPInfo.framebuffer = m_RenderData.Framebuffers[imageIndex];
-		swapchainRPInfo.renderArea.offset = { 0, 0 };
-		swapchainRPInfo.renderArea.extent = m_CoreData.Swapchain.extent;
-		swapchainRPInfo.clearValueCount = static_cast<u32>(clearValues.size());
-		swapchainRPInfo.pClearValues = clearValues.data();
+	void Renderer::BeginRenderToSwapchain()
+	{
+		if (!m_FrameInProgress) 
+			return;
 
-		vkCmdBeginRenderPass(cmd, &swapchainRPInfo, VK_SUBPASS_CONTENTS_INLINE);
+		std::array<VkClearValue, 2> clearValues = {};
+		clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
+		clearValues[1].depthStencil = { 1.0f, 0 };
 
+		VkRenderPassBeginInfo rpInfo = {};
+		rpInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		rpInfo.renderPass = m_RenderData.RenderPass;
+		rpInfo.framebuffer = m_RenderData.Framebuffers[m_CurrentImageIndex];
+		rpInfo.renderArea.offset = { 0, 0 };
+		rpInfo.renderArea.extent = m_CoreData.Swapchain.extent;
+		rpInfo.clearValueCount = static_cast<u32>(clearValues.size());
+		rpInfo.pClearValues = clearValues.data();
+
+		vkCmdBeginRenderPass(m_CurrentCommandBuffer, &rpInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBindPipeline(m_CurrentCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_BlitShader.Pipeline);
+
+		VkViewport viewport = {};
+		viewport.x = 0.0f;
+		viewport.y = 0.0f;
 		viewport.width = static_cast<f32>(m_CoreData.Swapchain.extent.width);
 		viewport.height = static_cast<f32>(m_CoreData.Swapchain.extent.height);
-		vkCmdSetViewport(cmd, 0, 1, &viewport);
+		viewport.minDepth = 0.0f;
+		viewport.maxDepth = 1.0f;
+		vkCmdSetViewport(m_CurrentCommandBuffer, 0, 1, &viewport);
 
+		VkRect2D scissor = {};
+		scissor.offset = { 0, 0 };
 		scissor.extent = m_CoreData.Swapchain.extent;
-		vkCmdSetScissor(cmd, 0, 1, &scissor);
+		vkCmdSetScissor(m_CurrentCommandBuffer, 0, 1, &scissor);
+	}
 
-		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_BlitShader.Pipeline);
-		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_BlitShader.PipelineLayout, 0, 1, &m_BlitShader.DescriptorSet, 0, nullptr);
-		vkCmdDraw(cmd, 3, 1, 0, 0);
+	void Renderer::EndRenderToSwapchain()
+	{
+		if (!m_FrameInProgress) 
+			return;
 
-		vkCmdEndRenderPass(cmd);
-		vkEndCommandBuffer(cmd);
+		vkCmdBindDescriptorSets(
+			m_CurrentCommandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			m_BlitShader.PipelineLayout,
+			0, 1,
+			&m_BlitShader.DescriptorSet,
+			0, nullptr
+		);
 
-		std::array waitSemaphores = { m_RenderData.AvailableSemaphores[m_RenderData.CurrentFrame] };
-		std::array waitStages = { static_cast<VkPipelineStageFlags>(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT) };
+		vkCmdDraw(m_CurrentCommandBuffer, 3, 1, 0, 0);
 
-		VkSubmitInfo submitInfo = {};
-		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		submitInfo.waitSemaphoreCount = 1;
-		submitInfo.pWaitSemaphores = waitSemaphores.data();
-		submitInfo.pWaitDstStageMask = waitStages.data();
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &m_RenderData.CommandBuffers[imageIndex];
-
-		std::array signalSemaphores = { m_RenderData.FinishedSemaphores[imageIndex] };
-		submitInfo.signalSemaphoreCount = 1;
-		submitInfo.pSignalSemaphores = signalSemaphores.data();
-
-		vkResetFences(m_CoreData.Device, 1, &m_RenderData.InFlightFences[m_RenderData.CurrentFrame]);
-
-		vkQueueSubmit(m_RenderData.GraphicsQueue, 1, &submitInfo, m_RenderData.InFlightFences[m_RenderData.CurrentFrame]);
-
-		VkPresentInfoKHR presentInfo = {};
-		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-		presentInfo.waitSemaphoreCount = 1;
-		presentInfo.pWaitSemaphores = signalSemaphores.data();
-
-		std::array swapchains = { static_cast<VkSwapchainKHR>(m_CoreData.Swapchain) };
-		presentInfo.swapchainCount = 1;
-		presentInfo.pSwapchains = swapchains.data();
-		presentInfo.pImageIndices = &imageIndex;
-
-		result = vkQueuePresentKHR(m_RenderData.PresentQueue, &presentInfo);
-
-		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
-		{
-			RecreateSwapchain();
-		}
-		else if (result != VK_SUCCESS)
-		{
-			LOG_CRITICAL("Failed to present swapchain image!");
-		}
-		m_RenderData.CurrentFrame = (m_RenderData.CurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+		vkCmdEndRenderPass(m_CurrentCommandBuffer);
 	}
 
 	MeshBuffers Renderer::CreateMeshBuffers(const std::vector<Vertex>& vertices, const std::vector<u32>& indices)

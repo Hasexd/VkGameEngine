@@ -31,8 +31,19 @@ namespace Core
 		Renderer() = default;
 
 		void Init(GLFWwindow* window);
-		void DrawFrame(const std::vector<std::shared_ptr<Object>>& objects, const Camera& camera);
 		void Cleanup();
+
+		void BeginFrame();
+		void EndFrame();
+
+		void BeginRenderToTexture();
+		void EndRenderToTexture();
+
+		void BeginRenderToSwapchain();
+		void EndRenderToSwapchain();
+
+		VkCommandBuffer GetCurrentCommandBuffer() const { return m_CurrentCommandBuffer; }
+		VkPipelineLayout GetGraphicsPipelineLayout() const { return m_GraphicsShader.PipelineLayout; }
 
 		[[nodiscard]] vkb::Device GetDevice() const noexcept { return m_CoreData.Device; }
 
@@ -78,6 +89,11 @@ namespace Core
 
 		CoreData m_CoreData;
 		RenderData m_RenderData;
+
+		VkCommandBuffer m_CurrentCommandBuffer;
+		u32 m_CurrentImageIndex;
+
+		bool m_FrameInProgress = false;
 
 		VkCommandPool m_ImmediateCommandPool;
 		VkCommandBuffer m_ImmediateCommandBuffer;

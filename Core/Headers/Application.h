@@ -13,6 +13,7 @@
 #include "UUID.h"
 #include "Object.h"
 #include "ECS.h"
+#include "Layer.h"
 
 namespace Core
 {
@@ -22,21 +23,52 @@ namespace Core
 		Application(const std::string& title, u32 width, u32 height);
 		~Application();
 
+		static Application& Get();
+		static f32 GetDeltaTime();
+
+		static GLFWwindow* GetWindow();
+		static glm::vec2 GetFramebufferSize();
+
+		static VkCommandBuffer GetCurrentCommandBuffer();
+		static VkPipelineLayout GetGraphicsPipelineLayout();
+
+		static std::vector<std::unique_ptr<Layer>>& GetLayerStack();
+
+		static MeshBuffers CreateMeshBuffers(const std::vector<Vertex>& vertices, const std::vector<u32>& indices);
+		static Mesh CreateMeshFromOBJ(const std::string& objName);
+
 		void Run();
 
-		std::shared_ptr<Object> AddObject();
+		template<std::derived_from<Layer> T>
+		void PushLayer();
 
-		void CreateMesh(const std::shared_ptr<Object>& obj, const std::vector<Vertex>& vertices, const std::vector<u32>& indices);
+		template<std::derived_from<Layer> T>
+		T* GetLayer();
 
 	private:
+		static inline Application* s_Instance = nullptr;
+		f32 m_DeltaTime;
+		bool m_Running = true;
+
 		std::unique_ptr<GLFWwindow, decltype(&glfwDestroyWindow)> m_Window;
 		std::unique_ptr<Renderer> m_Renderer;
-
-		double m_DeltaTime;
-
-		ECS m_ECS;
-		Camera m_Camera;
-
-		std::vector<std::shared_ptr<Object>> m_Objects;
+		std::vector<std::unique_ptr<Layer>> m_LayerStack;
 	};
+
+	template<std::derived_from<Layer> T>
+	void Application::PushLayer()
+	{
+		m_LayerStack.emplace_back(std::make_unique<T>());
+	}
+
+	template<std::derived_from<Layer> T>
+	T* Application::GetLayer()
+	{
+		for (const auto& layer : m_LayerStack)
+		{
+			if (auto casted = dynamic_cast<T*>(layer.get()))
+				return casted;
+		}
+		return nullptr;
+	}
 }
