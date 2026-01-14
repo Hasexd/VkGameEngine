@@ -50,7 +50,7 @@ private:
 	std::vector<std::unique_ptr<Core::Object>> m_Objects;
 	std::unordered_set<i32> m_PressedKeys;
 
-	VkDescriptorSet m_RenderTextureDescriptorSet;
+	VkDescriptorPool m_ImGuiDescriptorPool;
 };
 
 template<std::derived_from<Core::Object> T, typename... Args>

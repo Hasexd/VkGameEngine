@@ -56,7 +56,6 @@ namespace Core
 		VkDevice GetVulkanDevice() const { return m_CoreData.Device; }
 		u32 GetQueueFamily() const { return m_RenderData.QueueFamily; };
 		VkQueue GetGraphicsQueue() const { return m_RenderData.GraphicsQueue; }
-		VkDescriptorPool GetImGuiDescriptorPool() const { return m_ImGuiDescriptorPool; }
 		u32 GetSwapchainImageCount() const { return static_cast<u32>(m_RenderData.SwapchainImages.size()); }
 		VkRenderPass GetRenderPass() const { return m_RenderData.RenderPass; }
 		VkSampler GetRenderTextureSampler() const { return m_RenderTextureSampler; }
@@ -70,13 +69,13 @@ namespace Core
 		void CreateDepthResources();
 		void CreateRP();
 		void CreateGP();
+		void CreateBlitPipeline();
 		void CreateRenderTextures();
 		void CreateFramebuffers();
 		void CreateCommandPool();
 		void CreateCommandBuffers();
 		void CreateImmediateCommandResources();
 		void CreateSyncObjects();
-		void CreateImGuiDescriptorPool();
 		void RecreateSwapchain();
 
 		void ImmediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
@@ -108,8 +107,6 @@ namespace Core
 		VkCommandBuffer m_CurrentCommandBuffer;
 		u32 m_CurrentImageIndex;
 
-		VkDescriptorPool m_ImGuiDescriptorPool;
-
 		bool m_FrameInProgress = false;
 
 		VkCommandPool m_ImmediateCommandPool;
@@ -118,6 +115,7 @@ namespace Core
 		Image m_DepthImage;
 
 		Shader m_GraphicsShader;
+		Shader m_BlitShader;
 
 		Image m_RenderTexture;
 		VkSampler m_RenderTextureSampler;

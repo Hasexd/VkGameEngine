@@ -8,7 +8,6 @@ namespace
 			return;
 
 		LOG_ERROR("Vulkan Error: VkResult = {}", static_cast<u32>(err));
-		ASSERT(err >= 0);
 	}
 }
 
@@ -35,8 +34,6 @@ Editor::Editor()
 
 Editor::~Editor()
 {
-	vkFreeDescriptorSets(Core::Application::Get().GetVulkanDevice(), Core::Application::Get().GetImGuiDescriptorPool(), 1, &m_RenderTextureDescriptorSet);
-
 	for (auto& obj : m_Objects)
 	{
 		if(obj->HasComponent<Core::Mesh>())
@@ -58,6 +55,7 @@ Editor::~Editor()
 	ImGui_ImplVulkan_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
+	vkDestroyDescriptorPool(Core::Application::Get().GetVulkanDevice(), m_ImGuiDescriptorPool, nullptr);
 }
 
 void Editor::OnEvent(Core::Event& event)
@@ -165,11 +163,28 @@ bool Editor::OnWindowResize(Core::WindowResizeEvent& event)
 {
 	m_Camera.AspectRatio = static_cast<f32>(event.GetWidth()) / static_cast<f32>(event.GetHeight());
 	m_PressedKeys.clear();
+
 	return true;
 }
 
 void Editor::InitImGui()
 {
+	VkDescriptorPoolSize poolSizes[] =
+	{
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 10 },
+		{ VK_DESCRIPTOR_TYPE_SAMPLER, 10 },
+		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 10 }
+	};
+
+	VkDescriptorPoolCreateInfo poolInfo = {};
+	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+	poolInfo.maxSets = 10;
+	poolInfo.poolSizeCount = 3;
+	poolInfo.pPoolSizes = poolSizes;
+
+	vkCreateDescriptorPool(Core::Application::Get().GetVulkanDevice(), &poolInfo, nullptr, &m_ImGuiDescriptorPool);
+
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -197,7 +212,7 @@ void Editor::InitImGui()
 	initInfo.QueueFamily = app.GetQueueFamily();
 	initInfo.Queue = app.GetGraphicsQueue();
 	initInfo.PipelineCache = VK_NULL_HANDLE;
-	initInfo.DescriptorPool = app.GetImGuiDescriptorPool();
+	initInfo.DescriptorPool = m_ImGuiDescriptorPool;
 	initInfo.MinImageCount = app.GetSwapchainImageCount();
 	initInfo.ImageCount = app.GetSwapchainImageCount();
 	initInfo.Allocator = nullptr;
@@ -207,34 +222,23 @@ void Editor::InitImGui()
 	initInfo.CheckVkResultFn = CheckVkResult;
 
 	ImGui_ImplVulkan_Init(&initInfo);
-
-	m_RenderTextureDescriptorSet = ImGui_ImplVulkan_AddTexture(
-		Core::Application::Get().GetRenderTextureSampler(),
-		Core::Application::Get().GetRenderTextureImageView(),
-		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-	);
 }
 
 void Editor::RenderImGui()
 {
-	ImGui::DockSpaceOverViewport();
+	ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
 
-	ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
-		ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-		ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-	ImGui::Begin("Viewport");
-
-	ImGui::Image(
-		reinterpret_cast<ImTextureID>(m_RenderTextureDescriptorSet),
-		ImVec2{
-			static_cast<f32>(Core::Application::GetWindow().GetFramebufferSize().x),
-			static_cast<f32>(Core::Application::GetWindow().GetFramebufferSize().y)
-		}
-	);
+	ImGui::SetNextWindowBgAlpha(1.0f);
+	ImGui::Begin("Object information");
 	ImGui::End();
-	ImGui::PopStyleVar();
+
+	ImGui::SetNextWindowBgAlpha(1.0f);
+	ImGui::Begin("Scene Hierarchy");
+	ImGui::End();
+
+	ImGui::SetNextWindowBgAlpha(1.0f);
+	ImGui::Begin("Assets");
+	ImGui::End();
 
 	ImGui::Render();
 	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), Core::Application::GetCurrentCommandBuffer());

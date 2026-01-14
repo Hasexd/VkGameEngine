@@ -60,7 +60,6 @@ namespace Core
 		VkDevice GetVulkanDevice() const { return m_Renderer->GetVulkanDevice(); }
 		u32 GetQueueFamily() const { return m_Renderer->GetQueueFamily(); };
 		VkQueue GetGraphicsQueue() const { return m_Renderer->GetGraphicsQueue(); }
-		VkDescriptorPool GetImGuiDescriptorPool() const { return m_Renderer->GetImGuiDescriptorPool(); }
 		u32 GetSwapchainImageCount() const { return m_Renderer->GetSwapchainImageCount(); }
 		VkRenderPass GetRenderPass() const { return m_Renderer->GetRenderPass(); }
 		VkSampler GetRenderTextureSampler() const { return m_Renderer->GetRenderTextureSampler(); }
