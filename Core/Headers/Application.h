@@ -55,17 +55,18 @@ namespace Core
 		template<std::derived_from<Layer> T>
 		T* GetLayer();
 
-		VkInstance GetVulkanInstance() const { return m_Renderer->GetVulkanInstance(); }
-		VkPhysicalDevice GetPhysicalDevice() const { return m_Renderer->GetPhysicalDevice(); }
-		VkDevice GetVulkanDevice() const { return m_Renderer->GetVulkanDevice(); }
-		u32 GetQueueFamily() const { return m_Renderer->GetQueueFamily(); };
-		VkQueue GetGraphicsQueue() const { return m_Renderer->GetGraphicsQueue(); }
-		u32 GetSwapchainImageCount() const { return m_Renderer->GetSwapchainImageCount(); }
-		VkRenderPass GetRenderPass() const { return m_Renderer->GetRenderPass(); }
-		VkSampler GetRenderTextureSampler() const { return m_Renderer->GetRenderTextureSampler(); }
-		VkImageView GetRenderTextureImageView() const { return m_Renderer->GetRenderTextureImageView(); }
-		VmaAllocator GetVmaAllocator() const { return m_Renderer->GetVmaAllocator(); }
+		[[nodiscard]] VkInstance GetVulkanInstance() const { return m_Renderer->GetVulkanInstance(); }
+		[[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const { return m_Renderer->GetPhysicalDevice(); }
+		[[nodiscard]] VkDevice GetVulkanDevice() const { return m_Renderer->GetVulkanDevice(); }
+		[[nodiscard]] u32 GetQueueFamily() const { return m_Renderer->GetQueueFamily(); };
+		[[nodiscard]] VkQueue GetGraphicsQueue() const { return m_Renderer->GetGraphicsQueue(); }
+		[[nodiscard]] u32 GetSwapchainImageCount() const { return m_Renderer->GetSwapchainImageCount(); }
+		[[nodiscard]] VkRenderPass GetRenderPass() const { return m_Renderer->GetRenderPass(); }
+		[[nodiscard]] VkSampler GetRenderTextureSampler() const { return m_Renderer->GetRenderTextureSampler(); }
+		[[nodiscard]] VkImageView GetRenderTextureImageView() const { return m_Renderer->GetRenderTextureImageView(); }
+		[[nodiscard]] VmaAllocator GetVmaAllocator() const { return m_Renderer->GetVmaAllocator(); }
 
+		[[nodiscard]] Buffer& GetMaterialBuffer() { return m_Renderer->GetMaterialBuffer(); }
 	private:
 		static inline Application* s_Instance = nullptr;
 

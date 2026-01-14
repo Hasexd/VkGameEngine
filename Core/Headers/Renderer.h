@@ -44,27 +44,29 @@ namespace Core
 
 		void SetBackgroundColor(const VkClearColorValue& color) { m_ClearColor = color; };
 
-		VkCommandBuffer GetCurrentCommandBuffer() const { return m_CurrentCommandBuffer; }
-		VkPipelineLayout GetGraphicsPipelineLayout() const { return m_GraphicsShader.PipelineLayout; }
-
-		[[nodiscard]] vkb::Device GetDevice() const noexcept { return m_CoreData.Device; }
-
 		MeshBuffers CreateMeshBuffers(const std::vector<Vertex>& vertices, const std::vector<u32>& indices);
 
-		VkInstance GetVulkanInstance() const { return m_CoreData.Instance; }
-		VkPhysicalDevice GetPhysicalDevice() const { return m_CoreData.PhysicalDevice; }
-		VkDevice GetVulkanDevice() const { return m_CoreData.Device; }
-		u32 GetQueueFamily() const { return m_RenderData.QueueFamily; };
-		VkQueue GetGraphicsQueue() const { return m_RenderData.GraphicsQueue; }
-		u32 GetSwapchainImageCount() const { return static_cast<u32>(m_RenderData.SwapchainImages.size()); }
-		VkRenderPass GetRenderPass() const { return m_RenderData.RenderPass; }
-		VkSampler GetRenderTextureSampler() const { return m_RenderTextureSampler; }
-		VkImageView GetRenderTextureImageView() const { return m_RenderTexture.View; }
-		VmaAllocator GetVmaAllocator() const { return m_Allocator; }
+		[[nodiscard]] VkCommandBuffer GetCurrentCommandBuffer() const { return m_CurrentCommandBuffer; }
+		[[nodiscard]] VkPipelineLayout GetGraphicsPipelineLayout() const { return m_GraphicsShader.PipelineLayout; }
+
+		[[nodiscard]] vkb::Device GetDevice() const noexcept { return m_CoreData.Device; }
+		[[nodiscard]] VkInstance GetVulkanInstance() const { return m_CoreData.Instance; }
+		[[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const { return m_CoreData.PhysicalDevice; }
+		[[nodiscard]] VkDevice GetVulkanDevice() const { return m_CoreData.Device; }
+		[[nodiscard]] u32 GetQueueFamily() const { return m_RenderData.QueueFamily; };
+		[[nodiscard]] VkQueue GetGraphicsQueue() const { return m_RenderData.GraphicsQueue; }
+		[[nodiscard]] u32 GetSwapchainImageCount() const { return static_cast<u32>(m_RenderData.SwapchainImages.size()); }
+		[[nodiscard]] VkRenderPass GetRenderPass() const { return m_RenderData.RenderPass; }
+		[[nodiscard]] VkSampler GetRenderTextureSampler() const { return m_RenderTextureSampler; }
+		[[nodiscard]] VkImageView GetRenderTextureImageView() const { return m_RenderTexture.View; }
+		[[nodiscard]] VmaAllocator GetVmaAllocator() const { return m_Allocator; }
+
+		[[nodiscard]] Buffer& GetMaterialBuffer() { return m_MaterialBuffer; }
 
 	private:
 		void InitCoreData();
 		void CreateSwapchain();
+		void CreateBuffers();
 		void GetQueues();
 		void CreateDepthResources();
 		void CreateRP();
@@ -123,6 +125,8 @@ namespace Core
 		VkFramebuffer m_RenderTextureFramebuffer;
 		u32 m_RenderTextureWidth;
 		u32 m_RenderTextureHeight;
+
+		Buffer m_MaterialBuffer;
 
 		VmaAllocator m_Allocator;
 

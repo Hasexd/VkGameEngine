@@ -65,6 +65,7 @@ namespace Core
 		m_Window = window;
 		InitCoreData();
 		CreateSwapchain();
+		CreateBuffers();
 		GetQueues();
 		CreateDepthResources();
 		CreateRP();
@@ -275,7 +276,12 @@ namespace Core
 		attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
 		attributeDescriptions[2].offset = offsetof(Vertex, TextureCoordinate);
 
-		m_GraphicsShader = CreateShader(m_RenderTextureRenderPass, {}, { pushConstantRange }, &bindingDescription, attributeDescriptions, &viewport, &scissor, "object");
+		std::vector<DescriptorBinding> bindings =
+		{
+			DescriptorBinding(m_MaterialBuffer, 0)
+		};
+
+		m_GraphicsShader = CreateShader(m_RenderTextureRenderPass, bindings, {pushConstantRange}, &bindingDescription, attributeDescriptions, &viewport, &scissor, "object");
 		UpdateDescriptorSets(m_GraphicsShader);
 	}
 
@@ -444,6 +450,11 @@ namespace Core
 			vkCreateSemaphore(m_CoreData.Device, &semaphoreInfo, nullptr, &m_RenderData.AvailableSemaphores[i]);
 			vkCreateFence(m_CoreData.Device, &fenceInfo, nullptr, &m_RenderData.InFlightFences[i]);
 		}
+	}
+
+	void Renderer::CreateBuffers()
+	{
+		m_MaterialBuffer = CreateBuffer(sizeof(MaterialUBO), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 	}
 
 	Buffer Renderer::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
@@ -915,6 +926,8 @@ namespace Core
 
 		vkCmdBeginRenderPass(m_CurrentCommandBuffer, &rpInfo, VK_SUBPASS_CONTENTS_INLINE);
 		vkCmdBindPipeline(m_CurrentCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsShader.Pipeline);
+		vkCmdBindDescriptorSets(m_CurrentCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			m_GraphicsShader.PipelineLayout, 0, 1, &m_GraphicsShader.DescriptorSet, 0, nullptr);
 
 		VkViewport viewport = {};
 		viewport.x = 0.0f;
@@ -1200,6 +1213,8 @@ namespace Core
 		vkDestroyImageView(m_CoreData.Device, m_DepthImage.View, nullptr);
 
 		vkDestroySampler(m_CoreData.Device, m_RenderTextureSampler, nullptr);
+
+		vmaDestroyBuffer(m_Allocator, m_MaterialBuffer.Buffer, m_MaterialBuffer.Allocation);
 
 		vmaDestroyImage(m_Allocator, m_RenderTexture.Image, m_RenderTexture.Allocation);
 		vmaDestroyImage(m_Allocator, m_DepthImage.Image, m_DepthImage.Allocation);

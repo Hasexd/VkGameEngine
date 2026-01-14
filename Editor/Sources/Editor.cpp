@@ -15,6 +15,10 @@ Editor::Editor()
 {
 	auto obj = AddObject<Cube>();
 	obj->GetComponent<Core::Transform>()->Position = { 0.0f, 0.0f, -5.0f };
+	obj->AddComponent<Core::Material>();
+	
+	auto material = obj->GetComponent<Core::Material>();
+	material->Color = glm::vec3(1.0f, 0.0f, 0.0f);
 
 	glm::vec2 framebufferSize = Core::Application::GetWindow().GetFramebufferSize();
 	m_Camera.AspectRatio = static_cast<f32>(framebufferSize.x) / static_cast<f32>(framebufferSize.y);
@@ -71,20 +75,43 @@ void Editor::OnEvent(Core::Event& event)
 
 void Editor::OnRender()
 {
-	Core::Application& app = Core::Application::Get();
 	for (const auto& obj : m_Objects)
 	{
 		if (obj->HasComponent<Core::Mesh>())
 		{
-			Core::MVP mvp = {};
-			mvp.Model = obj->GetComponent<Core::Transform>()->GetModelMatrix();
-			mvp.View = m_Camera.GetViewMatrix();
-			mvp.Projection = m_Camera.GetProjectionMatrix();
-
-			vkCmdPushConstants(app.GetCurrentCommandBuffer(), app.GetGraphicsPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Core::MVP), &mvp);
-			obj->Draw(app.GetCurrentCommandBuffer());
+			PushMVPData(obj);
+			PushMaterialData(obj);
+			obj->Draw(Core::Application::Get().GetCurrentCommandBuffer());
 		}
 	}
+}
+
+void Editor::PushMVPData(const std::unique_ptr<Core::Object>& obj)
+{
+	Core::Application& app = Core::Application::Get();
+
+	Core::MVP mvp = {};
+	mvp.Model = obj->GetComponent<Core::Transform>()->GetModelMatrix();
+	mvp.View = m_Camera.GetViewMatrix();
+	mvp.Projection = m_Camera.GetProjectionMatrix();
+
+	vkCmdPushConstants(app.GetCurrentCommandBuffer(), app.GetGraphicsPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Core::MVP), &mvp);
+}
+
+void Editor::PushMaterialData(const std::unique_ptr<Core::Object>& obj)
+{
+	Core::MaterialUBO matUBO;
+	if (obj->HasComponent<Core::Material>())
+	{
+		matUBO.Color = obj->GetComponent<Core::Material>()->Color;
+	}
+
+	auto& app = Core::Application::Get();
+
+	void* data;
+	vmaMapMemory(app.GetVmaAllocator(), app.GetMaterialBuffer().Allocation, &data);
+	memcpy(data, &matUBO, sizeof(Core::MaterialUBO));
+	vmaUnmapMemory(app.GetVmaAllocator(), app.GetMaterialBuffer().Allocation);
 }
 
 void Editor::OnSwapchainRender()

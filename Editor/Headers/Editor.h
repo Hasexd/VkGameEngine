@@ -17,6 +17,8 @@
 #include "Object.h"
 #include "Mesh.h"
 #include "Cube.h"
+#include "Material.h"
+#include "VkTypes.h"
 
 class Editor : public Core::Layer
 {
@@ -40,6 +42,9 @@ public:
 private:
 	void InitImGui();
 	void RenderImGui();
+
+	void PushMVPData(const std::unique_ptr<Core::Object>& obj);
+	void PushMaterialData(const std::unique_ptr<Core::Object>& obj);
 private:
 	Core::ECS m_ECS;
 	Core::Camera m_Camera;

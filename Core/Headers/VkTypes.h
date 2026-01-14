@@ -124,6 +124,12 @@ namespace Core
 		glm::mat4 Projection;
 	};
 
+	// cant use Material from Component.h because it might have extra unwanted (in the shader) members in the future
+	struct MaterialUBO
+	{
+		alignas(16) glm::vec3 Color = glm::vec3(1.0f);
+	};
+
 	struct MeshBuffers
 	{
 		Buffer VertexBuffer;
