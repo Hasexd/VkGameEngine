@@ -20,6 +20,14 @@ Editor::Editor()
 	auto material = obj->GetComponent<Core::Material>();
 	material->Color = glm::vec3(1.0f, 0.0f, 0.0f);
 
+	auto obj2 = AddObject<Cube>();
+	obj2->GetComponent<Core::Transform>()->Position = { -5.0f, 0.0f, -5.0f };
+	obj2->AddComponent<Core::Material>();
+
+	material = obj2->GetComponent<Core::Material>();
+	material->Color = glm::vec3(0.0f, 1.0f, 0.0f);
+
+
 	glm::vec2 framebufferSize = Core::Application::GetWindow().GetFramebufferSize();
 	m_Camera.AspectRatio = static_cast<f32>(framebufferSize.x) / static_cast<f32>(framebufferSize.y);
 
@@ -75,43 +83,47 @@ void Editor::OnEvent(Core::Event& event)
 
 void Editor::OnRender()
 {
+	UpdateVPData();
+
 	for (const auto& obj : m_Objects)
 	{
 		if (obj->HasComponent<Core::Mesh>())
 		{
-			PushMVPData(obj);
-			PushMaterialData(obj);
+			PushConstants(obj);
 			obj->Draw(Core::Application::Get().GetCurrentCommandBuffer());
 		}
 	}
 }
 
-void Editor::PushMVPData(const std::unique_ptr<Core::Object>& obj)
+void Editor::UpdateVPData()
 {
 	Core::Application& app = Core::Application::Get();
 
-	Core::MVP mvp = {};
-	mvp.Model = obj->GetComponent<Core::Transform>()->GetModelMatrix();
-	mvp.View = m_Camera.GetViewMatrix();
-	mvp.Projection = m_Camera.GetProjectionMatrix();
+	Core::VP vpData = {};
+	vpData.View = m_Camera.GetViewMatrix();
+	vpData.Projection = m_Camera.GetProjectionMatrix();
 
-	vkCmdPushConstants(app.GetCurrentCommandBuffer(), app.GetGraphicsPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Core::MVP), &mvp);
+	void* data;
+	vmaMapMemory(app.GetVmaAllocator(), app.GetVPBuffer().Allocation, &data);
+	memcpy(data, &vpData, sizeof(Core::VP));
+	vmaUnmapMemory(app.GetVmaAllocator(), app.GetVPBuffer().Allocation);
 }
 
-void Editor::PushMaterialData(const std::unique_ptr<Core::Object>& obj)
+void Editor::PushConstants(const std::unique_ptr<Core::Object>& obj)
 {
+	Core::Application& app = Core::Application::Get();
+	Core::ObjPushConstants objPC = {};
+
 	Core::MaterialUBO matUBO;
 	if (obj->HasComponent<Core::Material>())
 	{
 		matUBO.Color = obj->GetComponent<Core::Material>()->Color;
 	}
+	
+	objPC.Model = obj->GetComponent<Core::Transform>()->GetModelMatrix();
+	objPC.Material = matUBO;
 
-	auto& app = Core::Application::Get();
-
-	void* data;
-	vmaMapMemory(app.GetVmaAllocator(), app.GetMaterialBuffer().Allocation, &data);
-	memcpy(data, &matUBO, sizeof(Core::MaterialUBO));
-	vmaUnmapMemory(app.GetVmaAllocator(), app.GetMaterialBuffer().Allocation);
+	vkCmdPushConstants(app.GetCurrentCommandBuffer(), app.GetGraphicsPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Core::ObjPushConstants), &objPC);
 }
 
 void Editor::OnSwapchainRender()
@@ -176,13 +188,16 @@ bool Editor::OnMouseMoved(Core::MouseMovedEvent& event)
 
 bool Editor::OnMouseButtonPressed(Core::MouseButtonPressedEvent& event)
 {
-	if (event.GetMouseButton() == GLFW_MOUSE_BUTTON_LEFT && Core::Application::GetCursorState() == GLFW_CURSOR_NORMAL)
+	ImGuiIO& io = ImGui::GetIO();
+
+	if (event.GetMouseButton() == GLFW_MOUSE_BUTTON_LEFT && Core::Application::GetCursorState() == GLFW_CURSOR_NORMAL && !io.WantCaptureMouse)
 	{
 		Core::Application::SetCursorState(GLFW_CURSOR_DISABLED);
 		m_LastMouseX = 0.0;
 		m_LastMouseY = 0.0;
 		return true;
 	}
+
 	return false;
 }
 
@@ -255,16 +270,19 @@ void Editor::RenderImGui()
 {
 	ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
 
+
 	ImGui::SetNextWindowBgAlpha(1.0f);
 	ImGui::Begin("Object information");
 	ImGui::End();
 
 	ImGui::SetNextWindowBgAlpha(1.0f);
 	ImGui::Begin("Scene Hierarchy");
+
 	ImGui::End();
 
 	ImGui::SetNextWindowBgAlpha(1.0f);
 	ImGui::Begin("Assets");
+
 	ImGui::End();
 
 	ImGui::Render();

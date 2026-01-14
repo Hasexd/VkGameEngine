@@ -66,7 +66,7 @@ namespace Core
 		[[nodiscard]] VkImageView GetRenderTextureImageView() const { return m_Renderer->GetRenderTextureImageView(); }
 		[[nodiscard]] VmaAllocator GetVmaAllocator() const { return m_Renderer->GetVmaAllocator(); }
 
-		[[nodiscard]] Buffer& GetMaterialBuffer() { return m_Renderer->GetMaterialBuffer(); }
+		[[nodiscard]] Buffer& GetVPBuffer() { return m_Renderer->GetVPBuffer(); }
 	private:
 		static inline Application* s_Instance = nullptr;
 

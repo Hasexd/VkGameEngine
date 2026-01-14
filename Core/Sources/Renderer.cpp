@@ -64,8 +64,8 @@ namespace Core
 	{
 		m_Window = window;
 		InitCoreData();
-		CreateSwapchain();
 		CreateBuffers();
+		CreateSwapchain();
 		GetQueues();
 		CreateDepthResources();
 		CreateRP();
@@ -135,6 +135,11 @@ namespace Core
 		allocatorCreateInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
 
 		vmaCreateAllocator(&allocatorCreateInfo, &m_Allocator);
+	}
+	
+	void Renderer::CreateBuffers()
+	{
+		m_VPBuffer = CreateBuffer(sizeof(VP), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 	}
 
 	void Renderer::CreateSwapchain()
@@ -248,10 +253,10 @@ namespace Core
 		scissor.offset = { 0, 0 };
 		scissor.extent = { m_RenderTextureWidth, m_RenderTextureHeight };
 
-		VkPushConstantRange pushConstantRange = {};
-		pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-		pushConstantRange.offset = 0;
-		pushConstantRange.size = sizeof(MVP);
+		VkPushConstantRange objPushConstantRange = {};
+		objPushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+		objPushConstantRange.offset = 0;
+		objPushConstantRange.size = sizeof(ObjPushConstants);
 
 		VkVertexInputBindingDescription bindingDescription = {};
 		bindingDescription.binding = 0;
@@ -278,10 +283,10 @@ namespace Core
 
 		std::vector<DescriptorBinding> bindings =
 		{
-			DescriptorBinding(m_MaterialBuffer, 0)
+			DescriptorBinding(m_VPBuffer, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
 		};
 
-		m_GraphicsShader = CreateShader(m_RenderTextureRenderPass, bindings, {pushConstantRange}, &bindingDescription, attributeDescriptions, &viewport, &scissor, "object");
+		m_GraphicsShader = CreateShader(m_RenderTextureRenderPass, bindings, { objPushConstantRange }, &bindingDescription, attributeDescriptions, &viewport, &scissor, "object");
 		UpdateDescriptorSets(m_GraphicsShader);
 	}
 
@@ -450,11 +455,6 @@ namespace Core
 			vkCreateSemaphore(m_CoreData.Device, &semaphoreInfo, nullptr, &m_RenderData.AvailableSemaphores[i]);
 			vkCreateFence(m_CoreData.Device, &fenceInfo, nullptr, &m_RenderData.InFlightFences[i]);
 		}
-	}
-
-	void Renderer::CreateBuffers()
-	{
-		m_MaterialBuffer = CreateBuffer(sizeof(MaterialUBO), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 	}
 
 	Buffer Renderer::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
@@ -1214,11 +1214,11 @@ namespace Core
 
 		vkDestroySampler(m_CoreData.Device, m_RenderTextureSampler, nullptr);
 
-		vmaDestroyBuffer(m_Allocator, m_MaterialBuffer.Buffer, m_MaterialBuffer.Allocation);
+		vmaDestroyBuffer(m_Allocator, m_VPBuffer.Buffer, m_VPBuffer.Allocation);
 
 		vmaDestroyImage(m_Allocator, m_RenderTexture.Image, m_RenderTexture.Allocation);
 		vmaDestroyImage(m_Allocator, m_DepthImage.Image, m_DepthImage.Allocation);
-
+		
 		vkb::destroy_swapchain(m_CoreData.Swapchain);
 
 		vmaDestroyAllocator(m_Allocator);

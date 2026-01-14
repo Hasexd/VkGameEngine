@@ -43,8 +43,8 @@ private:
 	void InitImGui();
 	void RenderImGui();
 
-	void PushMVPData(const std::unique_ptr<Core::Object>& obj);
-	void PushMaterialData(const std::unique_ptr<Core::Object>& obj);
+	void UpdateVPData();
+	void PushConstants(const std::unique_ptr<Core::Object>& obj);
 private:
 	Core::ECS m_ECS;
 	Core::Camera m_Camera;

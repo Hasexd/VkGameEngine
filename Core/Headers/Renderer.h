@@ -61,12 +61,12 @@ namespace Core
 		[[nodiscard]] VkImageView GetRenderTextureImageView() const { return m_RenderTexture.View; }
 		[[nodiscard]] VmaAllocator GetVmaAllocator() const { return m_Allocator; }
 
-		[[nodiscard]] Buffer& GetMaterialBuffer() { return m_MaterialBuffer; }
+		[[nodiscard]] Buffer& GetVPBuffer() { return m_VPBuffer; }
 
 	private:
 		void InitCoreData();
-		void CreateSwapchain();
 		void CreateBuffers();
+		void CreateSwapchain();
 		void GetQueues();
 		void CreateDepthResources();
 		void CreateRP();
@@ -126,7 +126,7 @@ namespace Core
 		u32 m_RenderTextureWidth;
 		u32 m_RenderTextureHeight;
 
-		Buffer m_MaterialBuffer;
+		Buffer m_VPBuffer;
 
 		VmaAllocator m_Allocator;
 
