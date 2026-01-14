@@ -7,9 +7,19 @@ project "Editor"
     targetdir("../bin/" .. outputdir .. "/%{prj.name}")
     objdir("../bin-int/" .. outputdir .. "/%{prj.name}")
 
+
     files {
         "Headers/**.h",
-        "Sources/**.cpp"
+        "Sources/**.cpp",
+        "Shaders/**.frag",
+        "Shaders/**.vert",
+        "Shaders/**.comp"
+    }
+
+    local shaderPath = path.getabsolute("Shaders")
+
+    defines {
+        "PATH_TO_SHADERS=\"" .. shaderPath .. "\"",
     }
 
     links {
@@ -32,6 +42,11 @@ project "Editor"
         ["Header Files"] = "Headers/**.h",
         ["Source Files"] = "Sources/**.cpp"
     }
+
+    filter "system:windows"
+        prebuildcommands {
+            "cd %{prj.location} && call Scripts/compile_shaders.bat"
+        }
 
     filter "configurations:Debug"
         runtime "Debug"

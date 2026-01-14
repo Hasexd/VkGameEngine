@@ -13,14 +13,14 @@ namespace
 
 Editor::Editor()
 {
-	auto obj = AddObject<Cube>();
+	auto obj = AddObject<Cube>("Red cube");
 	obj->GetComponent<Core::Transform>()->Position = { 0.0f, 0.0f, -5.0f };
 	obj->AddComponent<Core::Material>();
 	
 	auto material = obj->GetComponent<Core::Material>();
 	material->Color = glm::vec3(1.0f, 0.0f, 0.0f);
 
-	auto obj2 = AddObject<Cube>();
+	auto obj2 = AddObject<Cube>("Green cube");
 	obj2->GetComponent<Core::Transform>()->Position = { -5.0f, 0.0f, -5.0f };
 	obj2->AddComponent<Core::Material>();
 
@@ -42,6 +42,8 @@ Editor::Editor()
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
 		});
+
+	CreateOutlinePipeline();
 }
 
 Editor::~Editor()
@@ -67,7 +69,9 @@ Editor::~Editor()
 	ImGui_ImplVulkan_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
+
 	vkDestroyDescriptorPool(Core::Application::Get().GetVulkanDevice(), m_ImGuiDescriptorPool, nullptr);
+	m_OutlineShader.Destroy(Core::Application::Get().GetVulkanDevice());
 }
 
 void Editor::OnEvent(Core::Event& event)
@@ -83,13 +87,30 @@ void Editor::OnEvent(Core::Event& event)
 
 void Editor::OnRender()
 {
+	auto& app = Core::Application::Get();
+
+	RenderObjects();
+
+	vkCmdBindPipeline(app.GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_OutlineShader.Pipeline);
+	vkCmdBindDescriptorSets(app.GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
+		m_OutlineShader.PipelineLayout, 0, 1, &m_OutlineShader.DescriptorSet, 0, nullptr);
+
+	if (m_SelectedObject && m_SelectedObject->HasComponent<Core::Mesh>())
+	{
+		PushConstants(m_SelectedObject);
+		m_SelectedObject->Draw(app.GetCurrentCommandBuffer());
+	}
+}
+
+void Editor::RenderObjects()
+{
 	UpdateVPData();
 
 	for (const auto& obj : m_Objects)
 	{
 		if (obj->HasComponent<Core::Mesh>())
 		{
-			PushConstants(obj);
+			PushConstants(obj.get());
 			obj->Draw(Core::Application::Get().GetCurrentCommandBuffer());
 		}
 	}
@@ -109,7 +130,7 @@ void Editor::UpdateVPData()
 	vmaUnmapMemory(app.GetVmaAllocator(), app.GetVPBuffer().Allocation);
 }
 
-void Editor::PushConstants(const std::unique_ptr<Core::Object>& obj)
+void Editor::PushConstants(Core::Object* obj)
 {
 	Core::Application& app = Core::Application::Get();
 	Core::ObjPushConstants objPC = {};
@@ -209,6 +230,78 @@ bool Editor::OnWindowResize(Core::WindowResizeEvent& event)
 	return true;
 }
 
+void Editor::CreateOutlinePipeline()
+{
+	auto& app = Core::Application::Get();
+	VkExtent2D extent = app.GetSwapchain().extent;
+
+	VkViewport viewport = {};
+	viewport.x = 0.0f;
+	viewport.y = 0.0f;
+	viewport.width = static_cast<f32>(extent.width);
+	viewport.height = static_cast<f32>(extent.height);
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+
+	VkRect2D scissor = {};
+	scissor.offset = { 0, 0 };
+	scissor.extent = { extent.width, extent.height };
+
+	VkPushConstantRange objPushConstantRange = {};
+	objPushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	objPushConstantRange.offset = 0;
+	objPushConstantRange.size = sizeof(Core::ObjPushConstants);
+
+	VkVertexInputBindingDescription bindingDescription = {};
+	bindingDescription.binding = 0;
+	bindingDescription.stride = sizeof(Core::Vertex);
+	bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+	std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
+	attributeDescriptions.resize(3);
+
+	attributeDescriptions[0].binding = 0;
+	attributeDescriptions[0].location = 0;
+	attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+	attributeDescriptions[0].offset = offsetof(Core::Vertex, Position);
+
+	attributeDescriptions[1].binding = 0;
+	attributeDescriptions[1].location = 1;
+	attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+	attributeDescriptions[1].offset = offsetof(Core::Vertex, Normal);
+
+	attributeDescriptions[2].binding = 0;
+	attributeDescriptions[2].location = 2;
+	attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+	attributeDescriptions[2].offset = offsetof(Core::Vertex, TextureCoordinate);
+
+	VkPipelineDepthStencilStateCreateInfo depthStencil = {};
+	depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	depthStencil.depthTestEnable = VK_FALSE;
+	depthStencil.depthWriteEnable = VK_FALSE;
+	depthStencil.depthBoundsTestEnable = VK_FALSE;
+	depthStencil.stencilTestEnable = VK_TRUE;
+	depthStencil.front.passOp = VK_STENCIL_OP_KEEP;
+	depthStencil.front.compareOp = VK_COMPARE_OP_NOT_EQUAL;
+	depthStencil.front.reference = 1;
+	depthStencil.front.compareMask = 0xFF;
+	depthStencil.front.writeMask = 0xFF;
+	depthStencil.back = depthStencil.front;
+
+	std::vector<Core::DescriptorBinding> bindings =
+	{
+		Core::DescriptorBinding(app.GetVPBuffer(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
+	};
+
+	auto vert = m_ShaderDirectory / "Compiled" / "outline.vert.spv";
+	auto frag = m_ShaderDirectory / "Compiled" / "outline.frag.spv";
+
+	m_OutlineShader = app.CreateShader(app.GetRenderTextureRenderPass(), bindings, {objPushConstantRange},
+		&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, VK_CULL_MODE_NONE, vert, frag);
+
+	app.UpdateDescriptorSets(m_OutlineShader);
+}
+
 void Editor::InitImGui()
 {
 	VkDescriptorPoolSize poolSizes[] =
@@ -277,6 +370,14 @@ void Editor::RenderImGui()
 
 	ImGui::SetNextWindowBgAlpha(1.0f);
 	ImGui::Begin("Scene Hierarchy");
+
+	for (const auto& obj : m_Objects)
+	{
+		if (ImGui::Selectable(obj->GetName().c_str(), m_SelectedObject == obj.get()))
+		{
+			m_SelectedObject = obj.get();
+		}
+	}
 
 	ImGui::End();
 

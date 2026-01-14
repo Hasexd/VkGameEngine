@@ -9,7 +9,7 @@ namespace Core
 	class Object
 	{
 	public:
-		Object(ECS& ecs);
+		Object(ECS& ecs, const std::string& name);
 		virtual ~Object() = default;
 
 		virtual void OnUpdate(float deltaTime) {};
@@ -24,13 +24,16 @@ namespace Core
 		bool HasComponents();
 
 		template<std::derived_from<Component> T>
-		T* GetComponent();
+		[[nodiscard]] T* GetComponent();
 
 		void Draw(VkCommandBuffer cmd);
 
+
+		[[nodiscard]] const std::string& GetName() const { return m_Name; }
 	private:
 		UUID m_ID;
 		ECS& m_ECS;
+		std::string m_Name;
 	};
 
 	template<std::derived_from<Component> T, typename... Args>

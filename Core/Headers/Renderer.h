@@ -53,15 +53,30 @@ namespace Core
 		[[nodiscard]] VkInstance GetVulkanInstance() const { return m_CoreData.Instance; }
 		[[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const { return m_CoreData.PhysicalDevice; }
 		[[nodiscard]] VkDevice GetVulkanDevice() const { return m_CoreData.Device; }
+		[[nodiscard]] vkb::Swapchain GetSwapchain() const { return m_CoreData.Swapchain; }
 		[[nodiscard]] u32 GetQueueFamily() const { return m_RenderData.QueueFamily; };
 		[[nodiscard]] VkQueue GetGraphicsQueue() const { return m_RenderData.GraphicsQueue; }
 		[[nodiscard]] u32 GetSwapchainImageCount() const { return static_cast<u32>(m_RenderData.SwapchainImages.size()); }
 		[[nodiscard]] VkRenderPass GetRenderPass() const { return m_RenderData.RenderPass; }
+		[[nodiscard]] VkRenderPass GetRenderTextureRenderPass() const { return m_RenderTextureRenderPass; }
 		[[nodiscard]] VkSampler GetRenderTextureSampler() const { return m_RenderTextureSampler; }
 		[[nodiscard]] VkImageView GetRenderTextureImageView() const { return m_RenderTexture.View; }
 		[[nodiscard]] VmaAllocator GetVmaAllocator() const { return m_Allocator; }
 
 		[[nodiscard]] Buffer& GetVPBuffer() { return m_VPBuffer; }
+
+
+		Shader CreateShader(const VkRenderPass& renderPass, const std::vector<DescriptorBinding>& bindings,
+			const std::vector<VkPushConstantRange>& pushConstantRanges,
+			VkVertexInputBindingDescription* vtxInputBindingDesc,
+			std::vector<VkVertexInputAttributeDescription> vtxInputAttrDesc,
+			VkViewport* viewport,
+			VkRect2D* scissor,
+			VkPipelineDepthStencilStateCreateInfo* depthStencilInfo,
+			VkCullModeFlagBits cullMode,
+			const std::filesystem::path& vert, const std::filesystem::path& frag);
+
+		void UpdateDescriptorSets(const Shader& shader);
 
 	private:
 		void InitCoreData();
@@ -89,17 +104,6 @@ namespace Core
 			VkImageUsageFlags usage, VmaMemoryUsage memoryUsage);
 
 		void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
-
-		Shader CreateShader(const VkRenderPass& renderPass, const std::vector<DescriptorBinding>& bindings,
-			const std::vector<VkPushConstantRange>& pushConstantRanges,
-			VkVertexInputBindingDescription* vtxInputBindingDesc,
-			std::vector<VkVertexInputAttributeDescription> vtxInputAttrDesc,
-			VkViewport* viewport,
-			VkRect2D* scissor,
-			const std::string& name);
-
-		void UpdateDescriptorSets(const Shader& shader);
-
 	private:
 		GLFWwindow* m_Window;
 
@@ -123,14 +127,14 @@ namespace Core
 		VkSampler m_RenderTextureSampler;
 		VkRenderPass m_RenderTextureRenderPass;
 		VkFramebuffer m_RenderTextureFramebuffer;
-		u32 m_RenderTextureWidth;
-		u32 m_RenderTextureHeight;
 
 		Buffer m_VPBuffer;
 
 		VmaAllocator m_Allocator;
 
 		VkClearColorValue m_ClearColor = {0.0f, 0.0f, 0.0f, 1.0f};
+
+		std::filesystem::path m_ShaderDirectory = std::filesystem::path(PATH_TO_SHADERS);
 
 	};
 }

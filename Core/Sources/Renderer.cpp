@@ -35,9 +35,8 @@ namespace
 
 	VkFormat FindDepthFormat(vkb::PhysicalDevice physicalDevice)
 	{
-		std::array<VkFormat, 3> candidates =
+		std::array<VkFormat, 2> candidates =
 		{
-			VK_FORMAT_D32_SFLOAT,
 			VK_FORMAT_D32_SFLOAT_S8_UINT,
 			VK_FORMAT_D24_UNORM_S8_UINT
 		};
@@ -194,8 +193,8 @@ namespace Core
 		attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
 		attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
 		attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
@@ -244,14 +243,14 @@ namespace Core
 		VkViewport viewport = {};
 		viewport.x = 0.0f;
 		viewport.y = 0.0f;
-		viewport.width = static_cast<f32>(m_RenderTextureWidth);
-		viewport.height = static_cast<f32>(m_RenderTextureHeight);
+		viewport.width = static_cast<f32>(m_CoreData.Swapchain.extent.width);
+		viewport.height = static_cast<f32>(m_CoreData.Swapchain.extent.height);
 		viewport.minDepth = 0.0f;
 		viewport.maxDepth = 1.0f;
 
 		VkRect2D scissor = {};
 		scissor.offset = { 0, 0 };
-		scissor.extent = { m_RenderTextureWidth, m_RenderTextureHeight };
+		scissor.extent = { m_CoreData.Swapchain.extent.width, m_CoreData.Swapchain.extent.height };
 
 		VkPushConstantRange objPushConstantRange = {};
 		objPushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
@@ -281,12 +280,30 @@ namespace Core
 		attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
 		attributeDescriptions[2].offset = offsetof(Vertex, TextureCoordinate);
 
+		VkPipelineDepthStencilStateCreateInfo depthStencil = {};
+		depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+		depthStencil.depthTestEnable = VK_TRUE;
+		depthStencil.depthWriteEnable = VK_TRUE;
+		depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+		depthStencil.depthBoundsTestEnable = VK_FALSE;
+		depthStencil.stencilTestEnable = VK_TRUE;
+		depthStencil.front.passOp = VK_STENCIL_OP_REPLACE;
+		depthStencil.front.compareOp = VK_COMPARE_OP_ALWAYS;
+		depthStencil.front.reference = 1;
+		depthStencil.front.compareMask = 0xFF;
+		depthStencil.front.writeMask = 0xFF;
+		depthStencil.back = depthStencil.front;
+
 		std::vector<DescriptorBinding> bindings =
 		{
 			DescriptorBinding(m_VPBuffer, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
 		};
 
-		m_GraphicsShader = CreateShader(m_RenderTextureRenderPass, bindings, { objPushConstantRange }, &bindingDescription, attributeDescriptions, &viewport, &scissor, "object");
+		auto vert = m_ShaderDirectory / "Compiled" / "object.vert.spv";
+		auto frag = m_ShaderDirectory / "Compiled" / "object.frag.spv";
+
+		m_GraphicsShader = CreateShader(m_RenderTextureRenderPass, bindings, { objPushConstantRange },
+			&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, VK_CULL_MODE_BACK_BIT, vert, frag);
 		UpdateDescriptorSets(m_GraphicsShader);
 	}
 
@@ -305,12 +322,23 @@ namespace Core
 		scissor.offset = { 0, 0 };
 		scissor.extent = m_CoreData.Swapchain.extent;
 
+		VkPipelineDepthStencilStateCreateInfo depthStencil = {};
+		depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+		depthStencil.depthTestEnable = VK_TRUE;
+		depthStencil.depthWriteEnable = VK_TRUE;
+		depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+		depthStencil.depthBoundsTestEnable = VK_FALSE;
+		depthStencil.stencilTestEnable = VK_FALSE;
+
 		std::vector<DescriptorBinding> bindings =
 		{
 			DescriptorBinding(m_RenderTexture, m_RenderTextureSampler, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
 		};
 
-		m_BlitShader = CreateShader(m_RenderData.RenderPass, bindings, {}, nullptr, {}, &viewport, &scissor, "blit");
+		auto vert = m_ShaderDirectory / "Compiled" / "blit.vert.spv";
+		auto frag = m_ShaderDirectory / "Compiled" / "blit.frag.spv";
+
+		m_BlitShader = CreateShader(m_RenderData.RenderPass, bindings, {}, nullptr, {}, &viewport, &scissor, &depthStencil, VK_CULL_MODE_BACK_BIT, vert, frag);
 		UpdateDescriptorSets(m_BlitShader);
 	}
 
@@ -342,16 +370,13 @@ namespace Core
 			m_DepthImage.View
 		};
 
-		m_RenderTextureWidth = m_CoreData.Swapchain.extent.width;
-		m_RenderTextureHeight = m_CoreData.Swapchain.extent.height;
-
 		VkFramebufferCreateInfo framebufferInfo = {};
 		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 		framebufferInfo.renderPass = m_RenderTextureRenderPass;
 		framebufferInfo.attachmentCount = attachments.size();
 		framebufferInfo.pAttachments = attachments.data();
-		framebufferInfo.width = m_RenderTextureWidth;
-		framebufferInfo.height = m_RenderTextureHeight;
+		framebufferInfo.width = m_CoreData.Swapchain.extent.width;
+		framebufferInfo.height = m_CoreData.Swapchain.extent.height;
 		framebufferInfo.layers = 1;
 
 		vkCreateFramebuffer(m_CoreData.Device, &framebufferInfo, nullptr, &m_RenderTextureFramebuffer);
@@ -531,7 +556,10 @@ namespace Core
 		const std::vector<VkPushConstantRange>& pushConstantRange,
 		VkVertexInputBindingDescription* vtxInputBindingDesc,
 		std::vector<VkVertexInputAttributeDescription> vtxInputAttrDesc,
-		VkViewport* viewport, VkRect2D* scissor, const std::string& name)
+		VkViewport* viewport, VkRect2D* scissor,
+		VkPipelineDepthStencilStateCreateInfo* depthStencilInfo,
+		VkCullModeFlagBits cullMode,
+		const std::filesystem::path& vert, const std::filesystem::path& frag)
 	{
 		Shader shader;
 		shader.Bindings = bindings;
@@ -593,12 +621,8 @@ namespace Core
 		vkCreatePipelineLayout(m_CoreData.Device, &pipelineLayoutInfo, nullptr, &shader.PipelineLayout);
 		ASSERT(shader.PipelineLayout);
 
-		std::filesystem::path pathToCompiled = std::filesystem::path(PATH_TO_SHADERS) / "Compiled";
-		std::string vertPath = pathToCompiled.string() + "/" + name + ".vert.spv";
-		std::string fragPath = pathToCompiled.string() + "/" + name + ".frag.spv";
-
-		auto vertCode = ReadFile(vertPath);
-		auto fragCode = ReadFile(fragPath);
+		auto vertCode = ReadFile(vert);
+		auto fragCode = ReadFile(frag);
 
 		VkShaderModule vertModule = CreateShaderModule(m_CoreData, vertCode);
 		VkShaderModule fragModule = CreateShaderModule(m_CoreData, fragCode);
@@ -642,17 +666,9 @@ namespace Core
 		rasterizer.rasterizerDiscardEnable = VK_FALSE;
 		rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 		rasterizer.lineWidth = 1.0f;
-		rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+		rasterizer.cullMode = cullMode;
 		rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
 		rasterizer.depthBiasEnable = VK_FALSE;
-
-		VkPipelineDepthStencilStateCreateInfo depthStencil = {};
-		depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-		depthStencil.depthTestEnable = VK_TRUE;
-		depthStencil.depthWriteEnable = VK_TRUE;
-		depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
-		depthStencil.depthBoundsTestEnable = VK_FALSE;
-		depthStencil.stencilTestEnable = VK_FALSE;
 
 		VkPipelineMultisampleStateCreateInfo multisampling = {};
 		multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
@@ -691,7 +707,7 @@ namespace Core
 		pipelineInfo.pInputAssemblyState = &inputAssembly;
 		pipelineInfo.pViewportState = &viewportState;
 		pipelineInfo.pRasterizationState = &rasterizer;
-		pipelineInfo.pDepthStencilState = &depthStencil;
+		pipelineInfo.pDepthStencilState = depthStencilInfo;
 		pipelineInfo.pMultisampleState = &multisampling;
 		pipelineInfo.pColorBlendState = &colorBlending;
 		pipelineInfo.pDynamicState = &dynamicInfo;
@@ -920,7 +936,7 @@ namespace Core
 		rpInfo.renderPass = m_RenderTextureRenderPass;
 		rpInfo.framebuffer = m_RenderTextureFramebuffer;
 		rpInfo.renderArea.offset = { 0, 0 };
-		rpInfo.renderArea.extent = { m_RenderTextureWidth, m_RenderTextureHeight };
+		rpInfo.renderArea.extent = { m_CoreData.Swapchain.extent.width, m_CoreData.Swapchain.extent.height };
 		rpInfo.clearValueCount = static_cast<u32>(clearValues.size());
 		rpInfo.pClearValues = clearValues.data();
 
@@ -932,15 +948,15 @@ namespace Core
 		VkViewport viewport = {};
 		viewport.x = 0.0f;
 		viewport.y = 0.0f;
-		viewport.width = static_cast<f32>(m_RenderTextureWidth);
-		viewport.height = static_cast<f32>(m_RenderTextureHeight);
+		viewport.width = static_cast<f32>(m_CoreData.Swapchain.extent.width);
+		viewport.height = static_cast<f32>(m_CoreData.Swapchain.extent.height);
 		viewport.minDepth = 0.0f;
 		viewport.maxDepth = 1.0f;
 		vkCmdSetViewport(m_CurrentCommandBuffer, 0, 1, &viewport);
 
 		VkRect2D scissor = {};
 		scissor.offset = { 0, 0 };
-		scissor.extent = { m_RenderTextureWidth, m_RenderTextureHeight };
+		scissor.extent = { m_CoreData.Swapchain.extent.width, m_CoreData.Swapchain.extent.height };
 		vkCmdSetScissor(m_CurrentCommandBuffer, 0, 1, &scissor);
 	}
 

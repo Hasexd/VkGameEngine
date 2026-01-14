@@ -1,54 +1,34 @@
-================================================================================
-OpenGL Mathematics (GLM)
---------------------------------------------------------------------------------
-GLM is licensed under The Happy Bunny License or MIT License
+8. Deepfake - technologia na usługach kłamstwa
+Zacznij od pokazania, czym jest deepfake - technologia AI, która pozwala podrabiać twarze i głosy ludzi w filmach. Wyjaśnij, że dziś każdy z dostępem do internetu może stworzyć realistyczne wideo, gdzie polityk "mówi" coś, czego nigdy nie powiedział.
+Podaj konkretny przykład: deepfake z Zełenskim "wzywającym" do kapitulacji na początku wojny w Ukrainie, lub sfałszowane nagrania polityków przed wyborami. Zaznacz, że problem narasta - w 2023 liczba deepfake'ów wzrosła o ponad 500% w porównaniu do roku poprzedniego.
+Zakończ ostrzeżeniem: to nie science fiction, to nasza rzeczywistość. Technologia jest już tak dobra, że nawet eksperci mają problem z odróżnieniem prawdy od fałszu.
+9. Echo chambers i bańki filtrujące
+Wyjaśnij metaforę: wyobraź sobie, że żyjesz w pokoju z lustrzanymi ścianami - widzisz tylko odbicia swoich przekonań. Tak działają echo chambers w internecie.
+Opisz mechanizm: algorytmy social mediów pokazują nam treści podobne do tych, z którymi wcześniej wchodziliśmy w interakcję. Lubimy posty o jednej partii? Dostaniemy więcej takich treści. W efekcie żyjemy w informacyjnej bańce, nie widząc innych perspektyw.
+Podaj przykład: dwie osoby wpisujące to samo hasło w Google mogą dostać zupełnie inne wyniki, bo algorytm "wie", jakie mają poglądy. Jeden zobaczy artykuły pro-klimatyczne, drugi - negujące zmiany klimatu. Zakończ: to niebezpieczne, bo myślimy, że wszyscy myślą jak my, a polaryzacja społeczna rośnie.
+10. Wpływ algorytmów na rozprzestrzenianie fake newsów
+Zacznij od kluczowej prawdy: algorytmy mediów społecznościowych nie promują prawdy - promują zaangażowanie. A co angażuje? Emocje: szok, strach, oburzenie.
+Wyjaśnij mechanizm: badania MIT pokazały, że fake newsy rozprzestrzeniają się 6 razy szybciej niż prawdziwe informacje. Dlaczego? Bo są bardziej sensacyjne, bardziej ekstremalne. Algorytm to widzi i... promuje takie treści, bo ludzie je klikają, komentują, udostępniają.
+Podaj konkretny przykład: post z szokującym (fałszywym) tytułem typu "Ujawniono: szczepionki zawierają chipy!" może osiągnąć miliony wyświetleń w godziny, podczas gdy rzetelna informacja naukowa ledwo dotrze do tysięcy osób. Zakończ: algorytmy nieumyślnie stały się głównym dystrybutorem dezinformacji.
+11. Fake newsy w polityce - przykłady z wyborów
+Zacznij mocno: dezinformacja może decydować o wyniku wyborów. W erze cyfrowej wojny informacyjne są prawdziwe i mają realne konsekwencje.
+Podaj konkretne przykłady:
 
-================================================================================
-The Happy Bunny License (Modified MIT License)
---------------------------------------------------------------------------------
-Copyright (c) 2005 - G-Truc Creation
+Wybory w USA 2016: rosyjskie farmy trolli, fake newsy o Hillary Clinton (np. "Pizzagate")
+Wybory prezydenckie w Polsce: fake newsy o "12 tysiącach złotych dla imigrantów", sfałszowane cytaty polityków
+Brexit: manipulacje liczbami o imigrantach i kosztach członkostwa w UE
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Podkreśl skalę: według badań 23% Polaków przyznaje, że fake news wpłynął na ich decyzję wyborczą. To nie margines - to potencjalnie decydujący odsetek głosów. Zakończ: w demokracji walczymy nie tylko o głosy, ale o prawdę.
+12. Dezinformacja zdrowotna (antyszczepionkowcy, COVID-19)
+Zacznij od dramatycznego faktu: WHO uznała dezinformację zdrowotną za jedno z 10 największych zagrożeń dla zdrowia globalnego. To nie są tylko słowa w internecie - to ludzkie życia.
+Opisz przykład antyszczepionkowców: fałszywe badanie z 1998 łączące szczepionki z autyzmem zostało zdyskredytowane i wycofane, ale fake news żyje dalej. Efekt? Powrót odry w krajach, gdzie była już wyeliminowana. Dzieci umierają przez dezinformację.
+COVID-19: pandemia była też "infodemią". Fake newsy o 5G wywołującym wirusa, o "cudownych lekach" jak wybielacz do picia, o szczepionkach zmieniających DNA. Miliony ludzi odmawiały leczenia lub szczepień. Zakończ: w przypadku zdrowia, fake news to nie tylko kłamstwo - to potencjalny wyrok śmierci.
+13. Ekonomia fake newsów - kto na tym zarabia
+Rozpocznij pytaniem: dlaczego w ogóle ktoś tworzy fake newsy? Odpowiedź jest prosta: pieniądze.
+Wyjaśnij model biznesowy:
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+Farmy clickbaitowe: tworzysz szokujący fake news, umieszczasz reklamy, zarabiasz na kliknięciach. Jeden popularny fake news może przynieść tysiące dolarów dziennie.
+Polityczne kampanie dezinformacyjne: płatne trolle i botnety rozprzestrzeniające konkretne narracje.
+Influencerzy dezinformacji: osoby budujące zasięgi na teoriacach spiskowych, zarabiające na reklamach, donacjach, sprzedaży "kursy prawdy".
 
-Restrictions:
- By making use of the Software for military purposes, you choose to make a
- Bunny unhappy.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
-================================================================================
-The MIT License
---------------------------------------------------------------------------------
-Copyright (c) 2005 - G-Truc Creation
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
+Podaj przykład: w Macedonii nastolatki zarabiały tysiące dolarów miesięcznie, tworząc fake newsy o wyborach w USA. Zakończ: fake news to intratny biznes - i dopóki będzie się opłacał, będzie istniał. Walka z dezinformacją to też walka z jej ekonomicznym modelem.

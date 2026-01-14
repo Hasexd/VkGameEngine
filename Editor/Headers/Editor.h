@@ -37,14 +37,18 @@ public:
 	bool OnWindowResize(Core::WindowResizeEvent& event);
 
 	template<std::derived_from<Core::Object> T, typename... Args>
-	T* AddObject(Args&&... args);
+	T* AddObject(const std::string& name, Args&&... args);
 
 private:
 	void InitImGui();
 	void RenderImGui();
 
 	void UpdateVPData();
-	void PushConstants(const std::unique_ptr<Core::Object>& obj);
+	void PushConstants(Core::Object* obj);
+
+	void RenderObjects();
+	
+	void CreateOutlinePipeline();
 private:
 	Core::ECS m_ECS;
 	Core::Camera m_Camera;
@@ -52,15 +56,20 @@ private:
 	f64 m_LastMouseX = 0.0;
 	f64 m_LastMouseY = 0.0;
 
+	Core::Object* m_SelectedObject = nullptr;
 	std::vector<std::unique_ptr<Core::Object>> m_Objects;
 	std::unordered_set<i32> m_PressedKeys;
 
 	VkDescriptorPool m_ImGuiDescriptorPool;
+
+	std::filesystem::path m_ShaderDirectory = std::filesystem::path(PATH_TO_SHADERS);
+
+	Core::Shader m_OutlineShader;
 };
 
 template<std::derived_from<Core::Object> T, typename... Args>
-T* Editor::AddObject(Args&&... args)
+T* Editor::AddObject(const std::string& name, Args&&... args)
 {
-	auto& ptr = m_Objects.emplace_back(std::make_unique<T>(m_ECS, std::forward<Args>(args)...));
+	auto& ptr = m_Objects.emplace_back(std::make_unique<T>(m_ECS, name, std::forward<Args>(args)...));
 	return static_cast<T*>(ptr.get());
 }

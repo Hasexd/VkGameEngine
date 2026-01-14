@@ -58,15 +58,30 @@ namespace Core
 		[[nodiscard]] VkInstance GetVulkanInstance() const { return m_Renderer->GetVulkanInstance(); }
 		[[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const { return m_Renderer->GetPhysicalDevice(); }
 		[[nodiscard]] VkDevice GetVulkanDevice() const { return m_Renderer->GetVulkanDevice(); }
+		[[nodiscard]] vkb::Swapchain GetSwapchain() const { return m_Renderer->GetSwapchain(); }
 		[[nodiscard]] u32 GetQueueFamily() const { return m_Renderer->GetQueueFamily(); };
 		[[nodiscard]] VkQueue GetGraphicsQueue() const { return m_Renderer->GetGraphicsQueue(); }
 		[[nodiscard]] u32 GetSwapchainImageCount() const { return m_Renderer->GetSwapchainImageCount(); }
 		[[nodiscard]] VkRenderPass GetRenderPass() const { return m_Renderer->GetRenderPass(); }
+		[[nodiscard]] VkRenderPass GetRenderTextureRenderPass() const { return m_Renderer->GetRenderTextureRenderPass(); }
 		[[nodiscard]] VkSampler GetRenderTextureSampler() const { return m_Renderer->GetRenderTextureSampler(); }
 		[[nodiscard]] VkImageView GetRenderTextureImageView() const { return m_Renderer->GetRenderTextureImageView(); }
 		[[nodiscard]] VmaAllocator GetVmaAllocator() const { return m_Renderer->GetVmaAllocator(); }
 
+		[[nodiscard]] Shader CreateShader(const VkRenderPass& renderPass, const std::vector<DescriptorBinding>& bindings,
+			const std::vector<VkPushConstantRange>& pushConstantRanges,
+			VkVertexInputBindingDescription* vtxInputBindingDesc,
+			std::vector<VkVertexInputAttributeDescription> vtxInputAttrDesc,
+			VkViewport* viewport,
+			VkRect2D* scissor,
+			VkPipelineDepthStencilStateCreateInfo* depthStencilInfo,
+			VkCullModeFlagBits cullMode,
+			const std::filesystem::path& vert, const std::filesystem::path& frag) const { return m_Renderer->CreateShader(renderPass, bindings, pushConstantRanges, vtxInputBindingDesc, vtxInputAttrDesc,
+				viewport, scissor, depthStencilInfo, cullMode, vert, frag); }
+
 		[[nodiscard]] Buffer& GetVPBuffer() { return m_Renderer->GetVPBuffer(); }
+
+		void UpdateDescriptorSets(const Shader& shader) { m_Renderer->UpdateDescriptorSets(shader); }
 	private:
 		static inline Application* s_Instance = nullptr;
 
