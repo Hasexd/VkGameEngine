@@ -227,6 +227,12 @@ bool Editor::OnWindowResize(Core::WindowResizeEvent& event)
 	m_Camera.AspectRatio = static_cast<f32>(event.GetWidth()) / static_cast<f32>(event.GetHeight());
 	m_PressedKeys.clear();
 
+	vkDeviceWaitIdle(Core::Application::Get().GetVulkanDevice());
+
+	m_OutlineShader.Destroy(Core::Application::Get().GetVulkanDevice());
+
+	CreateOutlinePipeline();
+
 	return true;
 }
 
@@ -366,6 +372,15 @@ void Editor::RenderImGui()
 
 	ImGui::SetNextWindowBgAlpha(1.0f);
 	ImGui::Begin("Object information");
+
+	if (m_SelectedObject)
+	{
+		Core::Transform* transform = m_SelectedObject->GetComponent<Core::Transform>();
+		ImGui::InputFloat3("Position", &transform->Position.x);
+		ImGui::InputFloat3("Rotation", &transform->Rotation.x);
+		ImGui::InputFloat3("Scale", &transform->Scale.x);
+	}
+	
 	ImGui::End();
 
 	ImGui::SetNextWindowBgAlpha(1.0f);

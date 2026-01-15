@@ -787,9 +787,12 @@ namespace Core
 		vkDestroyCommandPool(m_CoreData.Device, m_RenderData.CommandPool, nullptr);
 
 		m_GraphicsShader.Destroy(m_CoreData.Device);
+		m_BlitShader.Destroy(m_CoreData.Device);
 
 		vkDestroyRenderPass(m_CoreData.Device, m_RenderData.RenderPass, nullptr);
 		vkDestroyRenderPass(m_CoreData.Device, m_RenderTextureRenderPass, nullptr);
+
+		vkDestroySampler(m_CoreData.Device, m_RenderTextureSampler, nullptr);
 
 		CreateSwapchain();
 		GetQueues();

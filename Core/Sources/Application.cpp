@@ -13,6 +13,12 @@ namespace Core
 	Application::Application(const std::string& title, u32 width, u32 height):
 		m_Renderer(std::make_unique<Renderer>())
 	{
+		if (s_Instance)
+		{
+			LOG_CRITICAL("Application already exists!");
+			return;
+		}
+
 		s_Instance = this;
 		glfwSetErrorCallback(GLFWErrorCallback);
 
