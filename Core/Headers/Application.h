@@ -28,21 +28,21 @@ namespace Core
 
 		static Application& Get();
 		static f32 GetDeltaTime();
-
 		static Window& GetWindow();
-
-		static VkCommandBuffer GetCurrentCommandBuffer();
-		static VkPipelineLayout GetGraphicsPipelineLayout();
 
 		static MeshBuffers CreateMeshBuffers(const std::vector<Vertex>& vertices, const std::vector<u32>& indices);
 		static Mesh CreateMeshFromOBJ(const std::string& objName);
 
-		static void SetBackgroundColor(const VkClearColorValue& color);
+		i32 GetCursorState();
+		void SetCursorState(i32 state);
 
-		static i32 GetCursorState();
-		static void SetCursorState(i32 state);
+		VkCommandBuffer GetCurrentCommandBuffer();
+		VkPipelineLayout GetGraphicsPipelineLayout();
+		void SetBackgroundColor(const VkClearColorValue& color);
 
 		void SetPreFrameRenderFunction(const std::function<void()>& func) { m_PreFrameRenderFunction = func; };
+
+		void SetWireframeMode(const bool enabled) { m_Renderer->SetWireframeMode(enabled); };
 
 		void Run();
 		void RaiseEvent(Event& event);

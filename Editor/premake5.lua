@@ -13,7 +13,8 @@ project "Editor"
         "Sources/**.cpp",
         "Shaders/**.frag",
         "Shaders/**.vert",
-        "Shaders/**.comp"
+        "Shaders/**.comp",
+        "Shaders/**.geom"
     }
 
     local shaderPath = path.getabsolute("Shaders")

@@ -65,6 +65,8 @@ private:
 	std::filesystem::path m_ShaderDirectory = std::filesystem::path(PATH_TO_SHADERS);
 
 	Core::Shader m_OutlineShader;
+
+	bool m_WireframeMode = false;
 };
 
 template<std::derived_from<Core::Object> T, typename... Args>

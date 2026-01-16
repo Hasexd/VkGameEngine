@@ -99,24 +99,29 @@ namespace Core
 
 		glfwCreateWindowSurface(m_CoreData.Instance, m_Window, nullptr, &m_CoreData.Surface);
 
-		VkPhysicalDeviceVulkan13Features features{};
+		VkPhysicalDeviceVulkan13Features features13 = {};
 
-		features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-		features.dynamicRendering = true;
-		features.synchronization2 = true;
+		features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+		features13.dynamicRendering = true;
+		features13.synchronization2 = true;
 
-		VkPhysicalDeviceVulkan12Features features12{};
+		VkPhysicalDeviceVulkan12Features features12 = {};
 		features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
 		features12.bufferDeviceAddress = true;
 		features12.descriptorIndexing = true;
 		features12.hostQueryReset = true;
 
+		VkPhysicalDeviceFeatures features = {};
+		features.fillModeNonSolid = VK_TRUE;
+		features.geometryShader = VK_TRUE;
+
 		vkb::PhysicalDeviceSelector selector(m_CoreData.Instance);
 		vkb::PhysicalDevice physicalDevice =
 			selector.set_minimum_version(1, 3)
 			.set_surface(m_CoreData.Surface)
-			.set_required_features_13(features)
+			.set_required_features_13(features13)
 			.set_required_features_12(features12)
+			.set_required_features(features)
 			.select()
 			.value();
 
@@ -301,10 +306,19 @@ namespace Core
 
 		auto vert = m_ShaderDirectory / "Compiled" / "object.vert.spv";
 		auto frag = m_ShaderDirectory / "Compiled" / "object.frag.spv";
+		auto geom = m_ShaderDirectory / "Compiled" / "object.geom.spv";
 
 		m_GraphicsShader = CreateShader(m_RenderTextureRenderPass, bindings, { objPushConstantRange },
 			&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, VK_CULL_MODE_BACK_BIT, vert, frag);
+
 		UpdateDescriptorSets(m_GraphicsShader);
+
+		m_WireframeShader = CreateShader(
+			m_RenderTextureRenderPass, bindings, { objPushConstantRange },
+			&bindingDescription, attributeDescriptions, &viewport, &scissor,
+			&depthStencil, VK_CULL_MODE_NONE, vert, frag, geom
+		);
+		UpdateDescriptorSets(m_WireframeShader);
 	}
 
 	void Renderer::CreateBlitPipeline()
@@ -559,7 +573,9 @@ namespace Core
 		VkViewport* viewport, VkRect2D* scissor,
 		VkPipelineDepthStencilStateCreateInfo* depthStencilInfo,
 		VkCullModeFlagBits cullMode,
-		const std::filesystem::path& vert, const std::filesystem::path& frag)
+		const std::filesystem::path& vert,
+		const std::filesystem::path& frag,
+		const std::filesystem::path& geom)
 	{
 		Shader shader;
 		shader.Bindings = bindings;
@@ -629,18 +645,42 @@ namespace Core
 
 		ASSERT(vertModule && fragModule);
 
+		VkShaderModule geomModule = VK_NULL_HANDLE;
+
+		if (!geom.empty())
+		{
+			auto geomCode = ReadFile(geom);
+			geomModule = CreateShaderModule(m_CoreData, geomCode);
+			ASSERT(geomModule);
+		}
+
+		std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
+
 		VkPipelineShaderStageCreateInfo vertStageInfo = {};
 		vertStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		vertStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
 		vertStageInfo.module = vertModule;
 		vertStageInfo.pName = "main";
+		shaderStages.push_back(vertStageInfo);
+
+		if (geomModule != VK_NULL_HANDLE)
+		{
+			VkPipelineShaderStageCreateInfo geomStageInfo = {};
+			geomStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+			geomStageInfo.stage = VK_SHADER_STAGE_GEOMETRY_BIT;
+			geomStageInfo.module = geomModule;
+			geomStageInfo.pName = "main";
+			shaderStages.push_back(geomStageInfo);
+		}
 
 		VkPipelineShaderStageCreateInfo fragStageInfo = {};
 		fragStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		fragStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 		fragStageInfo.module = fragModule;
 		fragStageInfo.pName = "main";
+		shaderStages.push_back(fragStageInfo);
 
+		
 		VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
 		vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 		vertexInputInfo.vertexBindingDescriptionCount = vtxInputBindingDesc ? 1 : 0;
@@ -692,7 +732,6 @@ namespace Core
 		colorBlending.blendConstants[3] = 0.0f;
 
 		std::array dynamicStates = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-		std::array shaderStages = { vertStageInfo, fragStageInfo };
 
 		VkPipelineDynamicStateCreateInfo dynamicInfo = {};
 		dynamicInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -701,7 +740,7 @@ namespace Core
 
 		VkGraphicsPipelineCreateInfo pipelineInfo = {};
 		pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-		pipelineInfo.stageCount = 2;
+		pipelineInfo.stageCount = static_cast<u32>(shaderStages.size());
 		pipelineInfo.pStages = shaderStages.data();
 		pipelineInfo.pVertexInputState = &vertexInputInfo;
 		pipelineInfo.pInputAssemblyState = &inputAssembly;
@@ -721,6 +760,11 @@ namespace Core
 
 		vkDestroyShaderModule(m_CoreData.Device, fragModule, nullptr);
 		vkDestroyShaderModule(m_CoreData.Device, vertModule, nullptr);
+
+		if (geomModule != VK_NULL_HANDLE)
+		{
+			vkDestroyShaderModule(m_CoreData.Device, geomModule, nullptr);
+		}
 
 		return shader;
 	}
@@ -787,6 +831,7 @@ namespace Core
 		vkDestroyCommandPool(m_CoreData.Device, m_RenderData.CommandPool, nullptr);
 
 		m_GraphicsShader.Destroy(m_CoreData.Device);
+		m_WireframeShader.Destroy(m_CoreData.Device);
 		m_BlitShader.Destroy(m_CoreData.Device);
 
 		vkDestroyRenderPass(m_CoreData.Device, m_RenderData.RenderPass, nullptr);
@@ -943,10 +988,12 @@ namespace Core
 		rpInfo.clearValueCount = static_cast<u32>(clearValues.size());
 		rpInfo.pClearValues = clearValues.data();
 
+		Shader& activeShader = m_WireframeMode ? m_WireframeShader : m_GraphicsShader;
+
 		vkCmdBeginRenderPass(m_CurrentCommandBuffer, &rpInfo, VK_SUBPASS_CONTENTS_INLINE);
-		vkCmdBindPipeline(m_CurrentCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsShader.Pipeline);
+		vkCmdBindPipeline(m_CurrentCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, activeShader.Pipeline);
 		vkCmdBindDescriptorSets(m_CurrentCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-			m_GraphicsShader.PipelineLayout, 0, 1, &m_GraphicsShader.DescriptorSet, 0, nullptr);
+			activeShader.PipelineLayout, 0, 1, &activeShader.DescriptorSet, 0, nullptr);
 
 		VkViewport viewport = {};
 		viewport.x = 0.0f;
@@ -1219,6 +1266,7 @@ namespace Core
 		vkDestroyFramebuffer(m_CoreData.Device, m_RenderTextureFramebuffer, nullptr);
 
 		m_GraphicsShader.Destroy(m_CoreData.Device);
+		m_WireframeShader.Destroy(m_CoreData.Device);
 		m_BlitShader.Destroy(m_CoreData.Device);
 
 		vkDestroyRenderPass(m_CoreData.Device, m_RenderData.RenderPass, nullptr);

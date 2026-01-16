@@ -27,7 +27,6 @@ Editor::Editor()
 	material = obj2->GetComponent<Core::Material>();
 	material->Color = glm::vec3(0.0f, 1.0f, 0.0f);
 
-
 	glm::vec2 framebufferSize = Core::Application::GetWindow().GetFramebufferSize();
 	m_Camera.AspectRatio = static_cast<f32>(framebufferSize.x) / static_cast<f32>(framebufferSize.y);
 
@@ -180,7 +179,13 @@ bool Editor::OnKeyPressed(Core::KeyPressedEvent& event)
 	m_PressedKeys.insert(event.GetKeyCode());
 
 	if (event.GetKeyCode() == GLFW_KEY_ESCAPE)
-		Core::Application::SetCursorState(GLFW_CURSOR_NORMAL);
+		Core::Application::Get().SetCursorState(GLFW_CURSOR_NORMAL);
+
+	if(event.GetKeyCode() == GLFW_KEY_F1 && !event.IsRepeat())
+	{
+		m_WireframeMode = !m_WireframeMode;
+		Core::Application::Get().SetWireframeMode(m_WireframeMode);
+	}
 
 	return true;
 }
@@ -193,7 +198,7 @@ bool Editor::OnKeyReleased(Core::KeyReleasedEvent& event)
 
 bool Editor::OnMouseMoved(Core::MouseMovedEvent& event)
 {
-	if (Core::Application::GetCursorState() == GLFW_CURSOR_NORMAL)
+	if (Core::Application::Get().GetCursorState() == GLFW_CURSOR_NORMAL)
 		return false;
 
 	if (m_LastMouseX == 0.0 && m_LastMouseY == 0.0)
@@ -216,9 +221,9 @@ bool Editor::OnMouseButtonPressed(Core::MouseButtonPressedEvent& event)
 {
 	ImGuiIO& io = ImGui::GetIO();
 
-	if (event.GetMouseButton() == GLFW_MOUSE_BUTTON_LEFT && Core::Application::GetCursorState() == GLFW_CURSOR_NORMAL && !io.WantCaptureMouse)
+	if (event.GetMouseButton() == GLFW_MOUSE_BUTTON_LEFT && Core::Application::Get().GetCursorState() == GLFW_CURSOR_NORMAL && !io.WantCaptureMouse)
 	{
-		Core::Application::SetCursorState(GLFW_CURSOR_DISABLED);
+		Core::Application::Get().SetCursorState(GLFW_CURSOR_DISABLED);
 		m_LastMouseX = 0.0;
 		m_LastMouseY = 0.0;
 		return true;
@@ -412,5 +417,5 @@ void Editor::RenderImGui()
 	ImGui::End();
 
 	ImGui::Render();
-	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), Core::Application::GetCurrentCommandBuffer());
+	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), Core::Application::Get().GetCurrentCommandBuffer());
 }

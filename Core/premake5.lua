@@ -12,7 +12,8 @@ project "Core"
         "Sources/**.cpp",
         "Shaders/**.frag",
         "Shaders/**.vert",
-        "Shaders/**.comp"
+        "Shaders/**.comp",
+        "Shaders/**.geom"
     }
 
     links {

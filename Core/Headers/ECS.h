@@ -77,7 +77,7 @@ namespace Core
 	}
 
 	template<std::derived_from<Component>... Ts>
-	bool HasComponents(const UUID& entity)
+	bool ECS::HasComponents(const UUID& entity)
 	{
 		return (HasComponent<Ts>(entity) && ...);
 	}

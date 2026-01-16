@@ -43,6 +43,7 @@ namespace Core
 		void EndRenderToSwapchain();
 
 		void SetBackgroundColor(const VkClearColorValue& color) { m_ClearColor = color; };
+		void SetWireframeMode(const bool enabled) { m_WireframeMode = enabled; }
 
 		MeshBuffers CreateMeshBuffers(const std::vector<Vertex>& vertices, const std::vector<u32>& indices);
 
@@ -74,7 +75,9 @@ namespace Core
 			VkRect2D* scissor,
 			VkPipelineDepthStencilStateCreateInfo* depthStencilInfo,
 			VkCullModeFlagBits cullMode,
-			const std::filesystem::path& vert, const std::filesystem::path& frag);
+			const std::filesystem::path& vert,
+			const std::filesystem::path& frag,
+			const std::filesystem::path& geom = "");
 
 		void UpdateDescriptorSets(const Shader& shader);
 
@@ -114,6 +117,7 @@ namespace Core
 		u32 m_CurrentImageIndex;
 
 		bool m_FrameInProgress = false;
+		bool m_WireframeMode = false;
 
 		VkCommandPool m_ImmediateCommandPool;
 		VkCommandBuffer m_ImmediateCommandBuffer;
@@ -121,6 +125,7 @@ namespace Core
 		Image m_DepthImage;
 
 		Shader m_GraphicsShader;
+		Shader m_WireframeShader;
 		Shader m_BlitShader;
 
 		Image m_RenderTexture;
