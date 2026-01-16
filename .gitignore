@@ -4,3 +4,5 @@
 *.vcxproj
 *.vcxproj.*
 *.sln
+.idea/
+Makefile

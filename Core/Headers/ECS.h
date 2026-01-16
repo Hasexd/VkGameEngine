@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <vector>
 #include <concepts>
+#include <memory>
 
 #include "UUID.h"
 #include "Types.h"

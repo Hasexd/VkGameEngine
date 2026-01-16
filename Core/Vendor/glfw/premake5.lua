@@ -53,7 +53,9 @@ project "GLFW"
             "src/osmesa_context.c",
             "src/linux_joystick.c",
             "src/posix_module.c",
+            "src/posix_poll.c"
         }
+        links {}
         defines { "_GLFW_X11" }
 
         filter "configurations:Debug"

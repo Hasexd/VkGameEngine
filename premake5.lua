@@ -6,8 +6,10 @@ workspace "VkGameEngine"
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 vkSDK = os.getenv("VULKAN_SDK")
 
+rootPath = os.getcwd()
+
 include "Core"
 include "Editor"
-include "Core/Vendor/GLFW"
-include "Core/Vendor/vk-bootstrap"
-include "Editor/Vendor/ImGui"
+include (rootPath .. "/Core/Vendor/glfw")
+include (rootPath .. "/Core/Vendor/vk-bootstrap")
+include (rootPath .. "/Editor/Vendor/ImGui")

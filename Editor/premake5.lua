@@ -20,11 +20,14 @@ project "Editor"
 
     defines {
         "PATH_TO_SHADERS=\"" .. shaderPath .. "\"",
+        "PATH_TO_EDITOR=\"" .. rootPath .. "/Editor" .. "\""
     }
 
     links {
         "Core",
-        "ImGui"
+        "ImGui",
+        "GLFW",
+        "VkBootstrap"
     }
 
     includedirs {
@@ -47,6 +50,9 @@ project "Editor"
         prebuildcommands {
             "cd %{prj.location} && call Scripts/compile_shaders.bat"
         }
+
+    filter "system:linux"
+        links { "vulkan" }
 
     filter "configurations:Debug"
         runtime "Debug"

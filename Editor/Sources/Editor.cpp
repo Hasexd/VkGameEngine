@@ -66,6 +66,11 @@ Editor::~Editor()
 		}
 	}
 
+	std::filesystem::path pathToImGuiIni = std::filesystem::path(PATH_TO_EDITOR) / "imgui.ini";
+	std::string pathStr = pathToImGuiIni.string();
+
+	ImGui::SaveIniSettingsToDisk(pathStr.c_str());
+
 	ImGui_ImplVulkan_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
@@ -332,6 +337,11 @@ void Editor::InitImGui()
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+	std::filesystem::path pathToImGuiIni = std::filesystem::path(PATH_TO_EDITOR) / "imgui.ini";
+	std::string pathStr = pathToImGuiIni.string();
+
+	ImGui::LoadIniSettingsFromDisk(pathStr.c_str());
 
 	ImGui::StyleColorsDark();
 
