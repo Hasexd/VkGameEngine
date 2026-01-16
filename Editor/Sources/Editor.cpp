@@ -14,14 +14,14 @@ namespace
 Editor::Editor()
 {
 	auto obj = AddObject<Cube>("Red cube");
-	obj->GetComponent<Core::Transform>()->Position = { 0.0f, 0.0f, -5.0f };
+	obj->GetComponent<Core::Transform>()->Position = { 0.0f, 0.0f, 5.0f };
 	obj->AddComponent<Core::Material>();
 	
 	auto material = obj->GetComponent<Core::Material>();
 	material->Color = glm::vec3(1.0f, 0.0f, 0.0f);
 
 	auto obj2 = AddObject<Cube>("Green cube");
-	obj2->GetComponent<Core::Transform>()->Position = { -5.0f, 0.0f, -5.0f };
+	obj2->GetComponent<Core::Transform>()->Position = { -5.0f, 0.0f, 5.0f };
 	obj2->AddComponent<Core::Material>();
 
 	material = obj2->GetComponent<Core::Material>();
@@ -162,9 +162,9 @@ void Editor::OnUpdate(f32 deltaTime)
 		return;
 
 	if (m_PressedKeys.count(GLFW_KEY_W))
-		m_Camera.Move(m_Camera.Front, deltaTime);
-	if (m_PressedKeys.count(GLFW_KEY_S))
 		m_Camera.Move(-m_Camera.Front, deltaTime);
+	if (m_PressedKeys.count(GLFW_KEY_S))
+		m_Camera.Move(m_Camera.Front, deltaTime);
 	if (m_PressedKeys.count(GLFW_KEY_A))
 		m_Camera.Move(-m_Camera.Right, deltaTime);
 	if (m_PressedKeys.count(GLFW_KEY_D))
@@ -207,7 +207,7 @@ bool Editor::OnMouseMoved(Core::MouseMovedEvent& event)
 		m_LastMouseY = event.GetY();
 	}
 
-	f32 xOffset = event.GetX() - m_LastMouseX;
+	f32 xOffset = m_LastMouseX - event.GetX();
 	f32 yOffset = event.GetY() - m_LastMouseY;
 	m_LastMouseX = event.GetX();
 	m_LastMouseY = event.GetY();
