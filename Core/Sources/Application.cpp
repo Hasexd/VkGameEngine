@@ -64,6 +64,8 @@ namespace Core
 			m_DeltaTime = glm::clamp(currentFrame - lastFrame, 0.001f, 0.1f);
 			lastFrame = currentFrame;
 
+			m_FPS = 1.0f / m_DeltaTime;
+
 			glfwPollEvents();
 
 			if (m_Window.ShouldClose())

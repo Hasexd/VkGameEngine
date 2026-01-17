@@ -63,11 +63,13 @@ namespace Core
 	{
 		m_Window = window;
 		InitCoreData();
+		SetPhysDevicePropertiesAndLimits();
 		CreateBuffers();
 		CreateSwapchain();
 		GetQueues();
 		CreateDepthResources();
-		CreateRP();
+		CreateGraphicsRP();
+		CreateSwapchainRP();
 		CreateRenderTextures();
 		CreateGP();
 		CreateBlitPipeline();
@@ -77,7 +79,7 @@ namespace Core
 		CreateImmediateCommandResources();
 		CreateSyncObjects();
 
-		TransitionImageLayout(m_RenderTexture.Image, m_RenderTexture.Format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+		TransitionImageLayout(m_RenderTextureResolved.Image, m_RenderTexture.Format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	}
 
 	void Renderer::InitCoreData()
@@ -141,6 +143,24 @@ namespace Core
 
 		vmaCreateAllocator(&allocatorCreateInfo, &m_Allocator);
 	}
+
+	void Renderer::SetPhysDevicePropertiesAndLimits()
+	{
+		vkGetPhysicalDeviceProperties(m_CoreData.PhysicalDevice, &m_PhysDeviceProperties);
+
+		m_PhysDeviceLimits = m_PhysDeviceProperties.limits;
+		
+		auto maxColorSamples = m_PhysDeviceLimits.framebufferColorSampleCounts;
+		auto maxDepthSamples = m_PhysDeviceLimits.framebufferDepthSampleCounts;
+		auto msaaSamples = glm::min(maxColorSamples, maxDepthSamples);
+
+		if (!(msaaSamples & m_MSAASamples))
+		{
+			m_MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+		}
+
+		LOG_INFO("MSAA Samples: {}", static_cast<u32>(m_MSAASamples));
+	}
 	
 	void Renderer::CreateBuffers()
 	{
@@ -178,11 +198,94 @@ namespace Core
 			VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_ASPECT_DEPTH_BIT,
 			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-			VMA_MEMORY_USAGE_GPU_ONLY
+			VMA_MEMORY_USAGE_GPU_ONLY,
+			VK_SAMPLE_COUNT_1_BIT
+		);
+
+		m_DepthImageMSAA = CreateImage(
+			m_CoreData.Swapchain.extent.width,
+			m_CoreData.Swapchain.extent.height,
+			depthFormat,
+			VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_ASPECT_DEPTH_BIT,
+			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+			VMA_MEMORY_USAGE_GPU_ONLY,
+			m_MSAASamples
 		);
 	}
 
-	void Renderer::CreateRP()
+	void Renderer::CreateGraphicsRP()
+	{
+		std::array<VkAttachmentDescription, 3> attachments = {};
+
+		attachments[0].format = m_CoreData.Swapchain.image_format;
+		attachments[0].samples = m_MSAASamples;
+		attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		attachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		attachments[1].format = m_CoreData.Swapchain.image_format;
+		attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
+		attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		attachments[1].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+		attachments[2].format = m_DepthImageMSAA.Format;
+		attachments[2].samples = m_MSAASamples;
+		attachments[2].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[2].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		attachments[2].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[2].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attachments[2].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		attachments[2].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		VkAttachmentReference colorAttachmentRef = {};
+		colorAttachmentRef.attachment = 0;
+		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		VkAttachmentReference resolveAttachmentRef = {};
+		resolveAttachmentRef.attachment = 1;
+		resolveAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		VkAttachmentReference depthAttachmentRef = {};
+		depthAttachmentRef.attachment = 2;
+		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		VkSubpassDescription subpass = {};
+		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+		subpass.colorAttachmentCount = 1;
+		subpass.pColorAttachments = &colorAttachmentRef;
+		subpass.pResolveAttachments = &resolveAttachmentRef;
+		subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+		VkSubpassDependency dependency = {};
+		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+		dependency.dstSubpass = 0;
+		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+		dependency.srcAccessMask = 0;
+		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+		VkRenderPassCreateInfo rpCreateInfo = {};
+		rpCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+		rpCreateInfo.attachmentCount = static_cast<u32>(attachments.size());
+		rpCreateInfo.pAttachments = attachments.data();
+		rpCreateInfo.subpassCount = 1;
+		rpCreateInfo.pSubpasses = &subpass;
+		rpCreateInfo.dependencyCount = 1;
+		rpCreateInfo.pDependencies = &dependency;
+
+		vkCreateRenderPass(m_CoreData.Device, &rpCreateInfo, nullptr, &m_RenderTextureRenderPass);
+		ASSERT(m_RenderTextureRenderPass);
+	}
+
+	void Renderer::CreateSwapchainRP()
 	{
 		std::array<VkAttachmentDescription, 2> attachments = {};
 
@@ -236,12 +339,7 @@ namespace Core
 		rpCreateInfo.pDependencies = &dependency;
 
 		vkCreateRenderPass(m_CoreData.Device, &rpCreateInfo, nullptr, &m_RenderData.RenderPass);
-
-		attachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		vkCreateRenderPass(m_CoreData.Device, &rpCreateInfo, nullptr, &m_RenderTextureRenderPass);
-
 		ASSERT(m_RenderData.RenderPass);
-		ASSERT(m_RenderTextureRenderPass);
 	}
 
 	void Renderer::CreateGP()
@@ -309,15 +407,20 @@ namespace Core
 			VK_DYNAMIC_STATE_SCISSOR
 		};
 
+		VkPipelineMultisampleStateCreateInfo multisampling = {};
+		multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+		multisampling.sampleShadingEnable = VK_FALSE;
+		multisampling.rasterizationSamples = m_MSAASamples;
+
 		m_GraphicsShader = CreateShader(m_RenderTextureRenderPass, bindings, { objPushConstantRange },
-			&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, dynamicStates, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag);
+			&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, dynamicStates, &multisampling, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag);
 
 		UpdateDescriptorSets(m_GraphicsShader);
 
 		m_WireframeShader = CreateShader(
 			m_RenderTextureRenderPass, bindings, { objPushConstantRange },
 			&bindingDescription, attributeDescriptions, &viewport, &scissor,
-			&depthStencil, dynamicStates, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag, geom
+			&depthStencil, dynamicStates, &multisampling, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag, geom
 		);
 		UpdateDescriptorSets(m_WireframeShader);
 	}
@@ -347,7 +450,8 @@ namespace Core
 
 		std::vector<DescriptorBinding> bindings =
 		{
-			DescriptorBinding(m_RenderTexture, m_RenderTextureSampler, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+			DescriptorBinding(m_RenderTextureResolved, m_RenderTextureSampler,
+				VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
 		};
 
 		auto vert = m_ShaderDirectory / "Compiled" / "blit.vert.spv";
@@ -359,7 +463,12 @@ namespace Core
 			VK_DYNAMIC_STATE_SCISSOR
 		};
 
-		m_BlitShader = CreateShader(m_RenderData.RenderPass, bindings, {}, nullptr, {}, &viewport, &scissor, &depthStencil, dynamicStates,
+		VkPipelineMultisampleStateCreateInfo multisampling = {};
+		multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+		multisampling.sampleShadingEnable = VK_FALSE;
+		multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+		m_BlitShader = CreateShader(m_RenderData.RenderPass, bindings, {}, nullptr, {}, &viewport, &scissor, &depthStencil, dynamicStates, &multisampling,
 			VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag);
 		UpdateDescriptorSets(m_BlitShader);
 	}
@@ -382,14 +491,31 @@ namespace Core
 		vkCreateSampler(m_CoreData.Device, &samplerInfo, nullptr, &m_RenderTextureSampler);
 		ASSERT(m_RenderTextureSampler);
 
+		m_RenderTexture = CreateImage(
+			m_CoreData.Swapchain.extent.width,
+			m_CoreData.Swapchain.extent.height,
+			VK_FORMAT_B8G8R8A8_SRGB,
+			VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+			VMA_MEMORY_USAGE_GPU_ONLY,
+			m_MSAASamples);
 
-		m_RenderTexture = CreateImage(m_CoreData.Swapchain.extent.width, m_CoreData.Swapchain.extent.height,
-			VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+		m_RenderTextureResolved = CreateImage(
+			m_CoreData.Swapchain.extent.width,
+			m_CoreData.Swapchain.extent.height,
+			VK_FORMAT_B8G8R8A8_SRGB,
+			VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+			VMA_MEMORY_USAGE_GPU_ONLY,
+			VK_SAMPLE_COUNT_1_BIT);
 
-		std::array attachments = 
+		std::array attachments =
 		{
 			m_RenderTexture.View,
-			m_DepthImage.View
+			m_RenderTextureResolved.View,
+			m_DepthImageMSAA.View
 		};
 
 		VkFramebufferCreateInfo framebufferInfo = {};
@@ -532,7 +658,8 @@ namespace Core
 			});
 	}
 
-	Image Renderer::CreateImage(u32 width, u32 height, VkFormat format, VkImageTiling tiling, VkImageAspectFlags aspects, VkImageUsageFlags usage, VmaMemoryUsage memoryUsage)
+	Image Renderer::CreateImage(u32 width, u32 height, VkFormat format, VkImageTiling tiling,
+		VkImageAspectFlags aspects, VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, VkSampleCountFlagBits samples)
 	{
 		VkImageCreateInfo imageInfo = {};
 		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -546,7 +673,7 @@ namespace Core
 		imageInfo.tiling = tiling;
 		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		imageInfo.usage = usage;
-		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		imageInfo.samples = samples;
 		imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
 		VmaAllocationCreateInfo allocInfo = {};
@@ -581,6 +708,7 @@ namespace Core
 		VkViewport* viewport, VkRect2D* scissor,
 		VkPipelineDepthStencilStateCreateInfo* depthStencilInfo,
 		const std::vector<VkDynamicState>& dynamicStates,
+		VkPipelineMultisampleStateCreateInfo* multisampleStateInfo,
 		VkCullModeFlagBits cullMode,
 		VkPolygonMode polygonMode,
 		VkPrimitiveTopology topology,
@@ -720,11 +848,6 @@ namespace Core
 		rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
 		rasterizer.depthBiasEnable = VK_FALSE;
 
-		VkPipelineMultisampleStateCreateInfo multisampling = {};
-		multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-		multisampling.sampleShadingEnable = VK_FALSE;
-		multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
 		VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
 		colorBlendAttachment.colorWriteMask =
 			VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -755,7 +878,7 @@ namespace Core
 		pipelineInfo.pViewportState = &viewportState;
 		pipelineInfo.pRasterizationState = &rasterizer;
 		pipelineInfo.pDepthStencilState = depthStencilInfo;
-		pipelineInfo.pMultisampleState = &multisampling;
+		pipelineInfo.pMultisampleState = multisampleStateInfo;
 		pipelineInfo.pColorBlendState = &colorBlending;
 		pipelineInfo.pDynamicState = &dynamicInfo;
 		pipelineInfo.layout = shader.PipelineLayout;
@@ -826,10 +949,16 @@ namespace Core
 
 		vkDestroyFramebuffer(m_CoreData.Device, m_RenderTextureFramebuffer, nullptr);
 		vkDestroyImageView(m_CoreData.Device, m_RenderTexture.View, nullptr);
+		vkDestroyImageView(m_CoreData.Device, m_RenderTextureResolved.View, nullptr);
 		vmaDestroyImage(m_Allocator, m_RenderTexture.Image, m_RenderTexture.Allocation);
+		vmaDestroyImage(m_Allocator, m_RenderTextureResolved.Image, m_RenderTextureResolved.Allocation);
 
 		vkDestroyImageView(m_CoreData.Device, m_DepthImage.View, nullptr);
+		vkDestroyImageView(m_CoreData.Device, m_DepthImageMSAA.View, nullptr);
+
 		vmaDestroyImage(m_Allocator, m_DepthImage.Image, m_DepthImage.Allocation);
+		vmaDestroyImage(m_Allocator, m_DepthImageMSAA.Image, m_DepthImageMSAA.Allocation);
+
 
 		vkFreeCommandBuffers(m_CoreData.Device, m_RenderData.CommandPool,
 			static_cast<uint32_t>(m_RenderData.CommandBuffers.size()),
@@ -850,7 +979,8 @@ namespace Core
 		CreateSwapchain();
 		GetQueues();
 		CreateDepthResources();
-		CreateRP();
+		CreateGraphicsRP();
+		CreateSwapchainRP();
 		CreateRenderTextures();
 		CreateGP();
 		CreateBlitPipeline();
@@ -983,9 +1113,10 @@ namespace Core
 			return;
 		}
 
-		std::array<VkClearValue, 2> clearValues = {};
+		std::array<VkClearValue, 3> clearValues = {};
 		clearValues[0].color = { m_ClearColor };
-		clearValues[1].depthStencil = { 1.0f, 0 };
+		clearValues[1].color = { m_ClearColor };
+		clearValues[2].depthStencil = { 1.0f, 0 };
 
 		VkRenderPassBeginInfo rpInfo = {};
 		rpInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -1027,27 +1158,6 @@ namespace Core
 		}
 
 		vkCmdEndRenderPass(m_CurrentCommandBuffer);
-
-		VkImageMemoryBarrier barrier = {};
-		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		barrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		barrier.image = m_RenderTexture.Image;
-		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		barrier.subresourceRange.baseMipLevel = 0;
-		barrier.subresourceRange.levelCount = 1;
-		barrier.subresourceRange.baseArrayLayer = 0;
-		barrier.subresourceRange.layerCount = 1;
-		barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-		vkCmdPipelineBarrier(
-			m_CurrentCommandBuffer,
-			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-			0, 0, nullptr, 0, nullptr, 1, &barrier);
 	}
 
 	void Renderer::BeginRenderToSwapchain()
@@ -1285,14 +1395,18 @@ namespace Core
 			vkDestroyImageView(m_CoreData.Device, imageView, nullptr);
 		}
 		vkDestroyImageView(m_CoreData.Device, m_RenderTexture.View, nullptr);
+		vkDestroyImageView(m_CoreData.Device, m_RenderTextureResolved.View, nullptr);
 		vkDestroyImageView(m_CoreData.Device, m_DepthImage.View, nullptr);
+		vkDestroyImageView(m_CoreData.Device, m_DepthImageMSAA.View, nullptr);
 
 		vkDestroySampler(m_CoreData.Device, m_RenderTextureSampler, nullptr);
 
 		vmaDestroyBuffer(m_Allocator, m_VPBuffer.Buffer, m_VPBuffer.Allocation);
 
 		vmaDestroyImage(m_Allocator, m_RenderTexture.Image, m_RenderTexture.Allocation);
+		vmaDestroyImage(m_Allocator, m_RenderTextureResolved.Image, m_RenderTextureResolved.Allocation);
 		vmaDestroyImage(m_Allocator, m_DepthImage.Image, m_DepthImage.Allocation);
+		vmaDestroyImage(m_Allocator, m_DepthImageMSAA.Image, m_DepthImageMSAA.Allocation);
 		
 		vkb::destroy_swapchain(m_CoreData.Swapchain);
 

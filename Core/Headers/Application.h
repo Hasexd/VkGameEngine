@@ -55,6 +55,8 @@ namespace Core
 		template<std::derived_from<Layer> T>
 		T* GetLayer();
 
+		[[nodiscard]] f32 GetFPS() const { return m_FPS; }
+
 		[[nodiscard]] VkInstance GetVulkanInstance() const { return m_Renderer->GetVulkanInstance(); }
 		[[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const { return m_Renderer->GetPhysicalDevice(); }
 		[[nodiscard]] VkDevice GetVulkanDevice() const { return m_Renderer->GetVulkanDevice(); }
@@ -67,6 +69,8 @@ namespace Core
 		[[nodiscard]] VkSampler GetRenderTextureSampler() const { return m_Renderer->GetRenderTextureSampler(); }
 		[[nodiscard]] VkImageView GetRenderTextureImageView() const { return m_Renderer->GetRenderTextureImageView(); }
 		[[nodiscard]] VmaAllocator GetVmaAllocator() const { return m_Renderer->GetVmaAllocator(); }
+		[[nodiscard]] VkSampleCountFlagBits GetMSAASamples() const { return m_Renderer->GetMSAASamples(); }
+		[[nodiscard]] VkPhysicalDeviceLimits GetPhysicalDeviceLimits() const { return m_Renderer->GetPhysicalDeviceLimits(); }
 
 		[[nodiscard]] Shader CreateShader(const VkRenderPass& renderPass, const std::vector<DescriptorBinding>& bindings,
 			const std::vector<VkPushConstantRange>& pushConstantRanges,
@@ -76,11 +80,12 @@ namespace Core
 			VkRect2D* scissor,
 			VkPipelineDepthStencilStateCreateInfo* depthStencilInfo,
 			const std::vector<VkDynamicState>& dynamicStates,
+			VkPipelineMultisampleStateCreateInfo* multisampleInfo,
 			VkCullModeFlagBits cullMode,
 			VkPolygonMode polygonMode,
 			VkPrimitiveTopology topology,
 			const std::filesystem::path& vert, const std::filesystem::path& frag) const { return m_Renderer->CreateShader(renderPass, bindings, pushConstantRanges, vtxInputBindingDesc, vtxInputAttrDesc,
-				viewport, scissor, depthStencilInfo, dynamicStates, cullMode, polygonMode, topology, vert, frag); }
+				viewport, scissor, depthStencilInfo, dynamicStates, multisampleInfo, cullMode, polygonMode, topology, vert, frag); }
 
 		[[nodiscard]] Buffer& GetVPBuffer() { return m_Renderer->GetVPBuffer(); }
 
@@ -93,6 +98,7 @@ namespace Core
 		static inline Application* s_Instance = nullptr;
 
 		f32 m_DeltaTime;
+		f32 m_FPS = 0.0f;
 		bool m_Running = true;
 
 		Window m_Window;

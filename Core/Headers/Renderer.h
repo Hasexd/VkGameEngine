@@ -65,6 +65,8 @@ namespace Core
 		[[nodiscard]] VmaAllocator GetVmaAllocator() const { return m_Allocator; }
 
 		[[nodiscard]] Buffer& GetVPBuffer() { return m_VPBuffer; }
+		[[nodiscard]] VkSampleCountFlagBits GetMSAASamples() const { return m_MSAASamples; }
+		[[nodiscard]] VkPhysicalDeviceLimits GetPhysicalDeviceLimits() const { return m_PhysDeviceLimits; }
 
 
 		Shader CreateShader(const VkRenderPass& renderPass, const std::vector<DescriptorBinding>& bindings,
@@ -75,6 +77,7 @@ namespace Core
 			VkRect2D* scissor,
 			VkPipelineDepthStencilStateCreateInfo* depthStencilInfo,
 			const std::vector<VkDynamicState>& dynamicStates,
+			VkPipelineMultisampleStateCreateInfo* multisampleInfo,
 			VkCullModeFlagBits cullMode,
 			VkPolygonMode polygonMode,
 			VkPrimitiveTopology topology,
@@ -89,11 +92,13 @@ namespace Core
 
 	private:
 		void InitCoreData();
+		void SetPhysDevicePropertiesAndLimits();
 		void CreateBuffers();
 		void CreateSwapchain();
 		void GetQueues();
 		void CreateDepthResources();
-		void CreateRP();
+		void CreateGraphicsRP();
+		void CreateSwapchainRP();
 		void CreateGP();
 		void CreateBlitPipeline();
 		void CreateRenderTextures();
@@ -107,7 +112,7 @@ namespace Core
 		void ImmediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
 
 		Image CreateImage(u32 width, u32 height, VkFormat format, VkImageTiling tiling, VkImageAspectFlags aspects,
-			VkImageUsageFlags usage, VmaMemoryUsage memoryUsage);
+			VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, VkSampleCountFlagBits samples);
 
 		void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 	private:
@@ -126,12 +131,14 @@ namespace Core
 		VkCommandBuffer m_ImmediateCommandBuffer;
 
 		Image m_DepthImage;
+		Image m_DepthImageMSAA;
 
 		Shader m_GraphicsShader;
 		Shader m_WireframeShader;
 		Shader m_BlitShader;
 
 		Image m_RenderTexture;
+		Image m_RenderTextureResolved;
 		VkSampler m_RenderTextureSampler;
 		VkRenderPass m_RenderTextureRenderPass;
 		VkFramebuffer m_RenderTextureFramebuffer;
@@ -144,6 +151,9 @@ namespace Core
 
 		std::filesystem::path m_ShaderDirectory = std::filesystem::path(PATH_TO_SHADERS);
 
+		VkPhysicalDeviceProperties m_PhysDeviceProperties;
+		VkPhysicalDeviceLimits m_PhysDeviceLimits;
+		VkSampleCountFlagBits m_MSAASamples = VK_SAMPLE_COUNT_4_BIT;
 	};
 }
 

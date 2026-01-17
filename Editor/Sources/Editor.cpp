@@ -14,10 +14,7 @@ namespace
 Editor::Editor()
 {
 	auto& app = Core::Application::Get();
-	VkPhysicalDeviceProperties props;
-
-	vkGetPhysicalDeviceProperties(app.GetPhysicalDevice(), &props);
-	s_MaxLineWidth = props.limits.lineWidthRange[1];
+	s_MaxLineWidth = app.GetPhysicalDeviceLimits().lineWidthRange[1];
 
 	app.SetCursorState(GLFW_CURSOR_DISABLED);
 	app.SetBackgroundColor({0.0f, 0.0f, 0.0f, 1.0f});
@@ -73,7 +70,7 @@ Editor::~Editor()
 	{
 		if(obj->HasComponent<Core::Mesh>())
 		{
-			Core::Mesh* mesh = obj->GetComponent<Core::Mesh>();
+			auto mesh = obj->GetComponent<Core::Mesh>();
 
 			vmaDestroyBuffer(
 				Core::Application::Get().GetVmaAllocator(),
@@ -411,6 +408,11 @@ void Editor::CreateOutlinePipeline()
 	depthStencilWireframe.depthBoundsTestEnable = VK_FALSE;
 	depthStencilWireframe.stencilTestEnable = VK_FALSE;
 
+	VkPipelineMultisampleStateCreateInfo multisampling = {};
+	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisampling.sampleShadingEnable = VK_FALSE;
+	multisampling.rasterizationSamples = app.GetMSAASamples();
+
 	m_OutlineShader = app.CreateShader(
 		app.GetRenderTextureRenderPass(),
 		bindings,
@@ -421,6 +423,7 @@ void Editor::CreateOutlinePipeline()
 		&scissor,
 		&depthStencilWireframe,
 		dynamicStates,
+		&multisampling,
 		VK_CULL_MODE_FRONT_BIT,
 		VK_POLYGON_MODE_LINE,
 		VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
@@ -448,6 +451,7 @@ void Editor::CreateOutlinePipeline()
 		&scissor,
 		&depthStencilFill,
 		dynamicStates,
+		&multisampling,
 		VK_CULL_MODE_BACK_BIT,
 		VK_POLYGON_MODE_FILL,
 		VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
@@ -512,11 +516,17 @@ void Editor::CreateDebugLinePipeline()
 		Core::DescriptorBinding(app.GetVPBuffer(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
 	};
 
+	VkPipelineMultisampleStateCreateInfo multisampling = {};
+	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisampling.sampleShadingEnable = VK_FALSE;
+	multisampling.rasterizationSamples = app.GetMSAASamples();
+
 	auto vert = m_ShaderDirectory / "Compiled" / "debug_line.vert.spv";
 	auto frag = m_ShaderDirectory / "Compiled" / "debug_line.frag.spv";
 
 	m_DebugLineShader = app.CreateShader(app.GetRenderTextureRenderPass(), bindings, { debugLinePushConstant },
-		&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, dynamicStates, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, VK_PRIMITIVE_TOPOLOGY_LINE_LIST, vert, frag);
+		&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, dynamicStates, &multisampling,
+		VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, VK_PRIMITIVE_TOPOLOGY_LINE_LIST, vert, frag);
 
 	app.UpdateDescriptorSets(m_DebugLineShader);
 }
