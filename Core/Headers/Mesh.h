@@ -29,15 +29,16 @@ namespace Core
 		void Bind(VkCommandBuffer commandBuffer) const;
 		void Draw(VkCommandBuffer commandBuffer) const;
 
-		[[nodiscard]] u32 GetIndexCount() const noexcept { return m_IndexCount; }
-		[[nodiscard]] u32 GetVertexCount() const noexcept { return m_VertexCount; }
+		[[nodiscard]] const std::vector<Vertex>& GetVertices() const noexcept { return m_Vertices; }
+		[[nodiscard]] const std::vector<u32>& GetIndices() const noexcept { return m_Indices; }
 		[[nodiscard]] const Buffer& GetVertexBuffer() const noexcept { return m_VertexBuffer; }
 		[[nodiscard]] const Buffer& GetIndexBuffer() const noexcept { return m_IndexBuffer; }
 
 	private:
 		Buffer m_VertexBuffer;
 		Buffer m_IndexBuffer;
-		u32 m_VertexCount = 0;
-		u32 m_IndexCount = 0;
+
+		std::vector<Vertex> m_Vertices;
+		std::vector<u32> m_Indices;
 	};
 }

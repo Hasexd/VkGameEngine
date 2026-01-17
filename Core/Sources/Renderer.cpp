@@ -1113,8 +1113,8 @@ namespace Core
 	MeshBuffers Renderer::CreateMeshBuffers(const std::vector<Vertex>& vertices, const std::vector<u32>& indices)
 	{
 		MeshBuffers meshBuffers;
-		meshBuffers.VertexCount = static_cast<u32>(vertices.size());
-		meshBuffers.IndexCount = static_cast<u32>(indices.size());
+		meshBuffers.Vertices = vertices;
+		meshBuffers.Indices = indices;
 
 		VkDeviceSize vertexBufferSize = sizeof(Vertex) * vertices.size();
 

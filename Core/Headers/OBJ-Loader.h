@@ -17,6 +17,8 @@
 // Math.h - STD math Library
 #include <math.h>
 
+#include <glm/glm.hpp>
+
 #ifdef DEBUG
 // Print progress to console while loading (large models)
 #define OBJL_CONSOLE_OUTPUT
@@ -123,6 +125,11 @@ namespace objl
 		Vector3 operator/(const float& other) const
 		{
 			return Vector3(this->X / other, this->Y / other, this->Z / other);
+		}
+
+		operator glm::vec3() const noexcept
+		{
+			return glm::vec3(X, Y, Z);
 		}
 
 		// Positional Variables

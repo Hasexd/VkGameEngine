@@ -7,6 +7,7 @@
 #include <glm/glm.hpp>
 
 #include "Types.h"
+#include "OBJ-Loader.h"
 
 namespace Core
 {
@@ -139,7 +140,7 @@ namespace Core
 	{
 		Buffer VertexBuffer;
 		Buffer IndexBuffer;
-		u32 VertexCount;
-		u32 IndexCount;
+		std::vector<objl::Vertex> Vertices;
+		std::vector<u32> Indices;
 	};
 }

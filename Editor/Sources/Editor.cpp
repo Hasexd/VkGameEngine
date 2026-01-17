@@ -194,7 +194,8 @@ void Editor::OnSwapchainRender()
 
 void Editor::OnUpdate(f32 deltaTime)
 {
-	if (!glfwGetWindowAttrib(Core::Application::GetWindow().GetHandle(), GLFW_FOCUSED))
+	auto& app = Core::Application::Get();
+	if (!glfwGetWindowAttrib(app.GetWindow().GetHandle(), GLFW_FOCUSED))
 		return;
 
 	if (m_PressedKeys.count(GLFW_KEY_W))
@@ -208,6 +209,16 @@ void Editor::OnUpdate(f32 deltaTime)
 
 	for(const auto& obj : m_Objects)
 		obj->OnUpdate(deltaTime);
+
+	for (auto& line : m_DebugLines)
+	{
+		line->Lifetime -= deltaTime;
+	}
+
+	vkDeviceWaitIdle(app.GetVulkanDevice());
+	m_DebugLines.erase(std::remove_if(m_DebugLines.begin(), m_DebugLines.end(),
+		[](const std::unique_ptr<DebugLine>& line) { return line->Lifetime <= 0.0f; }),
+		m_DebugLines.end());
 }
 
 bool Editor::OnKeyPressed(Core::KeyPressedEvent& event)
@@ -255,9 +266,35 @@ bool Editor::OnMouseMoved(Core::MouseMovedEvent& event)
 
 bool Editor::OnMouseButtonPressed(Core::MouseButtonPressedEvent& event)
 {
-	ImGuiIO& io = ImGui::GetIO();
+	if (ImGui::GetIO().WantCaptureMouse)
+		return true;
 
-	if (event.GetMouseButton() == GLFW_MOUSE_BUTTON_LEFT && Core::Application::Get().GetCursorState() == GLFW_CURSOR_NORMAL && !io.WantCaptureMouse)
+	if (event.GetMouseButton() == GLFW_MOUSE_BUTTON_LEFT && Core::Application::Get().GetCursorState() == GLFW_CURSOR_NORMAL)
+	{
+		Core::Ray ray = {};
+		ray.Origin = m_Camera.Position;
+		ray.Origin.z += 0.1f;
+
+		glm::vec2 mousePos = Core::Application::Get().GetWindow().GetMousePos();
+		glm::vec2 framebufferSize = Core::Application::Get().GetWindow().GetFramebufferSize();
+
+		glm::vec3 ndc = glm::vec3((2.0f * mousePos.x) / framebufferSize.x - 1.0f, (2.0f * mousePos.y) / framebufferSize.y - 1.0f, 0.0f);
+		glm::vec4 rayClip = glm::vec4(ndc.x, ndc.y, 0.0f, 1.0f);
+		glm::vec4 rayEye = glm::inverse(m_Camera.GetProjectionMatrix()) * rayClip;
+		rayEye = glm::vec4(rayEye.x, rayEye.y, 1.0f, 0.0f);
+
+		glm::vec4 invRayWorld = glm::inverse(m_Camera.GetViewMatrix()) * rayEye;
+		glm::vec3 direction(invRayWorld.x, invRayWorld.y, invRayWorld.z);
+
+		ray.Direction = glm::normalize(direction);
+
+		if (PickObject(ray))
+		{
+			return true;
+		}
+	}
+
+	if (event.GetMouseButton() == GLFW_MOUSE_BUTTON_LEFT && Core::Application::Get().GetCursorState() == GLFW_CURSOR_NORMAL)
 	{
 		Core::Application::Get().SetCursorState(GLFW_CURSOR_DISABLED);
 		m_LastMouseX = 0.0;
@@ -537,4 +574,75 @@ void Editor::DrawDebugLine(const glm::vec3& start, const glm::vec3& end, const g
 	}
 
 	m_DebugLines.push_back(std::make_unique<DebugLine>(start, end, color, lifetime, thickness));
+}
+
+bool Editor::PickObject(const Core::Ray& ray)
+{
+	for (const auto& obj : m_Objects)
+	{
+		if (!obj->HasComponent<Core::Mesh>())
+			continue;
+
+		auto transform = obj->GetComponent<Core::Transform>();
+		glm::mat4 invTransform = glm::inverse(transform->GetModelMatrix());
+		glm::vec3 localOrigin = glm::vec3(invTransform * glm::vec4(ray.Origin, 1.0f));
+		glm::vec3 localDirection = glm::normalize(glm::vec3(invTransform * glm::vec4(ray.Direction, 0.0f)));
+
+		auto mesh = obj->GetComponent<Core::Mesh>();
+		const auto& vertices = mesh->GetVertices();
+		const auto& indices = mesh->GetIndices();
+
+		for (usize i = 0; i < indices.size(); i += 3)
+		{
+			glm::vec3 v0 = vertices[indices[i]].Position;
+			glm::vec3 v1 = vertices[indices[i + 1]].Position;
+			glm::vec3 v2 = vertices[indices[i + 2]].Position;
+
+			Core::Ray localRay = {};
+			localRay.Origin = localOrigin;
+			localRay.Direction = localDirection;
+
+			if (RayTriangleIntersection(localRay, v0, v1, v2))
+			{
+				m_SelectedObject = obj.get();
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool Editor::RayTriangleIntersection(const Core::Ray& ray, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2)
+{
+	// https://en.wikipedia.org/wiki/Möller–Trumbore_intersection_algorithm
+
+	constexpr f32 epsilon = std::numeric_limits<f32>::epsilon();
+
+	glm::vec3 edge1 = v1 - v0;
+	glm::vec3 edge2 = v2 - v0;
+	glm::vec3 rayCrossEdge2 = glm::cross(ray.Direction, edge2);
+	f32 det = glm::dot(edge1, rayCrossEdge2);
+
+	if (det > -epsilon && det < epsilon)
+		return false;
+
+	f32 invDet = 1.0f / det;
+	glm::vec3 s = ray.Origin - v0;
+	f32 u = invDet * glm::dot(s, rayCrossEdge2);
+
+	if ((u < 0 && std::abs(u) > epsilon) || (u > 1 && std::abs(u - 1) > epsilon))
+		return false;
+
+	glm::vec3 sCrossEdge1 = glm::cross(s, edge1);
+	f32 v = invDet * glm::dot(ray.Direction, sCrossEdge1);
+
+	if ((v < 0 && std::abs(v) > epsilon) || (u + v > 1 && std::abs(u + v - 1) > epsilon))
+		return false;
+
+	f32 t = invDet * glm::dot(edge2, sCrossEdge1);
+
+	if (t > epsilon)
+		return true;
+
+	return false;
 }

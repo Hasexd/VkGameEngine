@@ -5,8 +5,8 @@ namespace Core
 	Mesh::Mesh(const MeshBuffers& meshBuffers) :
 		m_VertexBuffer(meshBuffers.VertexBuffer),
 		m_IndexBuffer(meshBuffers.IndexBuffer),
-		m_VertexCount(meshBuffers.VertexCount),
-		m_IndexCount(meshBuffers.IndexCount)
+		m_Vertices(meshBuffers.Vertices),
+		m_Indices(meshBuffers.Indices)
 	{
 
 	}
@@ -25,8 +25,8 @@ namespace Core
 			m_IndexBuffer.Buffer = VK_NULL_HANDLE;
 		}
 
-		m_VertexCount = 0;
-		m_IndexCount = 0;
+		m_Vertices.clear();
+		m_Indices.clear();
 	}
 
 	void Mesh::Bind(VkCommandBuffer commandBuffer) const
@@ -39,6 +39,6 @@ namespace Core
 
 	void Mesh::Draw(VkCommandBuffer commandBuffer) const
 	{
-		vkCmdDrawIndexed(commandBuffer, m_IndexCount, 1, 0, 0, 0);
+		vkCmdDrawIndexed(commandBuffer, m_Indices.size(), 1, 0, 0, 0);
 	}
 }

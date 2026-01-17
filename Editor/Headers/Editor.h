@@ -20,6 +20,7 @@
 #include "Material.h"
 #include "VkTypes.h"
 #include "DebugLine.h"
+#include "Ray.h"
 
 class Editor : public Core::Layer
 {
@@ -55,6 +56,10 @@ private:
 	
 	void CreateOutlinePipeline();
 	void CreateDebugLinePipeline();
+
+	bool RayTriangleIntersection(const Core::Ray& ray, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2);
+
+	bool PickObject(const Core::Ray& ray);
 private:
 	Core::ECS m_ECS;
 	Core::Camera m_Camera;
