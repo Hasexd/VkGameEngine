@@ -21,7 +21,7 @@ project "Editor"
 
     defines {
         "PATH_TO_SHADERS=\"" .. shaderPath .. "\"",
-        "PATH_TO_EDITOR=\"" .. rootPath .. "/Editor" .. "\""
+        "PATH_TO_EDITOR=\"" .. rootPath .. "/Editor" .. "\"",
     }
 
     links {

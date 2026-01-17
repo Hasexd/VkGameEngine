@@ -76,12 +76,17 @@ namespace Core
 			VkRect2D* scissor,
 			VkPipelineDepthStencilStateCreateInfo* depthStencilInfo,
 			VkCullModeFlagBits cullMode,
+			VkPrimitiveTopology topology,
 			const std::filesystem::path& vert, const std::filesystem::path& frag) const { return m_Renderer->CreateShader(renderPass, bindings, pushConstantRanges, vtxInputBindingDesc, vtxInputAttrDesc,
-				viewport, scissor, depthStencilInfo, cullMode, vert, frag); }
+				viewport, scissor, depthStencilInfo, cullMode, topology, vert, frag); }
 
 		[[nodiscard]] Buffer& GetVPBuffer() { return m_Renderer->GetVPBuffer(); }
 
 		void UpdateDescriptorSets(const Shader& shader) { m_Renderer->UpdateDescriptorSets(shader); }
+
+		Buffer CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage) { return m_Renderer->CreateBuffer(size, usage, memoryUsage); };
+		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) { m_Renderer->CopyBuffer(srcBuffer, dstBuffer, size); };
+
 	private:
 		static inline Application* s_Instance = nullptr;
 

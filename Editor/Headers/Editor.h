@@ -19,6 +19,7 @@
 #include "Cube.h"
 #include "Material.h"
 #include "VkTypes.h"
+#include "DebugLine.h"
 
 class Editor : public Core::Layer
 {
@@ -36,6 +37,8 @@ public:
 	bool OnKeyReleased(Core::KeyReleasedEvent& event);
 	bool OnWindowResize(Core::WindowResizeEvent& event);
 
+	static void DrawDebugLine(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color, f32 lifetime);
+
 	template<std::derived_from<Core::Object> T, typename... Args>
 	T* AddObject(const std::string& name, Args&&... args);
 
@@ -46,9 +49,12 @@ private:
 	void UpdateVPData();
 	void PushConstants(Core::Object* obj);
 
-	void RenderObjects();
+	void RenderObjects(Core::Application& app);
+	void RenderSelectedObjectOutline(Core::Application& app);
+	void RenderDebugLines(Core::Application& app);
 	
 	void CreateOutlinePipeline();
+	void CreateDebugLinePipeline();
 private:
 	Core::ECS m_ECS;
 	Core::Camera m_Camera;
@@ -65,6 +71,9 @@ private:
 	std::filesystem::path m_ShaderDirectory = std::filesystem::path(PATH_TO_SHADERS);
 
 	Core::Shader m_OutlineShader;
+	Core::Shader m_DebugLineShader;
+
+	static inline std::vector<std::unique_ptr<DebugLine>> m_DebugLines;
 
 	bool m_WireframeMode = false;
 };

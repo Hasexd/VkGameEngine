@@ -43,6 +43,11 @@ Editor::Editor()
 		});
 
 	CreateOutlinePipeline();
+	CreateDebugLinePipeline();
+
+	DrawDebugLine(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 10.0f), glm::vec3(0.0f, 0.0f, 1.0f), 5.0f);
+	DrawDebugLine(glm::vec3(-2.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 10.0f), glm::vec3(1.0f, 0.0f, 1.0f), 5.0f);
+	DrawDebugLine(glm::vec3(2.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 10.0f), glm::vec3(1.0f, 1.0f, 0.0f), 5.0f);
 }
 
 Editor::~Editor()
@@ -76,6 +81,9 @@ Editor::~Editor()
 
 	vkDestroyDescriptorPool(Core::Application::Get().GetVulkanDevice(), m_ImGuiDescriptorPool, nullptr);
 	m_OutlineShader.Destroy(Core::Application::Get().GetVulkanDevice());
+	m_DebugLineShader.Destroy(Core::Application::Get().GetVulkanDevice());
+
+	m_DebugLines.clear();
 }
 
 void Editor::OnEvent(Core::Event& event)
@@ -93,8 +101,27 @@ void Editor::OnRender()
 {
 	auto& app = Core::Application::Get();
 
-	RenderObjects();
+	UpdateVPData();
 
+	RenderObjects(app);
+	RenderSelectedObjectOutline(app);
+	RenderDebugLines(app);
+}
+
+void Editor::RenderObjects(Core::Application& app)
+{
+	for (const auto& obj : m_Objects)
+	{
+		if (obj->HasComponent<Core::Mesh>())
+		{
+			PushConstants(obj.get());
+			obj->Draw(Core::Application::Get().GetCurrentCommandBuffer());
+		}
+	}
+}
+
+void Editor::RenderSelectedObjectOutline(Core::Application& app)
+{
 	vkCmdBindPipeline(app.GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_OutlineShader.Pipeline);
 	vkCmdBindDescriptorSets(app.GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
 		m_OutlineShader.PipelineLayout, 0, 1, &m_OutlineShader.DescriptorSet, 0, nullptr);
@@ -106,17 +133,20 @@ void Editor::OnRender()
 	}
 }
 
-void Editor::RenderObjects()
+void Editor::RenderDebugLines(Core::Application& app)
 {
-	UpdateVPData();
+	vkCmdBindPipeline(app.GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_DebugLineShader.Pipeline);
+	vkCmdBindDescriptorSets(app.GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
+		m_DebugLineShader.PipelineLayout, 0, 1, &m_DebugLineShader.DescriptorSet, 0, nullptr);
 
-	for (const auto& obj : m_Objects)
+	for (const auto& line : m_DebugLines)
 	{
-		if (obj->HasComponent<Core::Mesh>())
-		{
-			PushConstants(obj.get());
-			obj->Draw(Core::Application::Get().GetCurrentCommandBuffer());
-		}
+		DLPushConstants dlPc = {};
+		dlPc.Model = line->GetModelMatrix();
+		dlPc.Color = line->GetColor();
+
+		vkCmdPushConstants(app.GetCurrentCommandBuffer(), m_DebugLineShader.PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DLPushConstants), &dlPc);
+		line->Draw();
 	}
 }
 
@@ -226,6 +256,7 @@ bool Editor::OnMouseButtonPressed(Core::MouseButtonPressedEvent& event)
 		Core::Application::Get().SetCursorState(GLFW_CURSOR_DISABLED);
 		m_LastMouseX = 0.0;
 		m_LastMouseY = 0.0;
+
 		return true;
 	}
 
@@ -240,8 +271,10 @@ bool Editor::OnWindowResize(Core::WindowResizeEvent& event)
 	vkDeviceWaitIdle(Core::Application::Get().GetVulkanDevice());
 
 	m_OutlineShader.Destroy(Core::Application::Get().GetVulkanDevice());
+	m_DebugLineShader.Destroy(Core::Application::Get().GetVulkanDevice());
 
 	CreateOutlinePipeline();
+	CreateDebugLinePipeline();
 
 	return true;
 }
@@ -313,9 +346,65 @@ void Editor::CreateOutlinePipeline()
 	auto frag = m_ShaderDirectory / "Compiled" / "outline.frag.spv";
 
 	m_OutlineShader = app.CreateShader(app.GetRenderTextureRenderPass(), bindings, {objPushConstantRange},
-		&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, VK_CULL_MODE_NONE, vert, frag);
+		&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, VK_CULL_MODE_NONE, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag);
 
 	app.UpdateDescriptorSets(m_OutlineShader);
+}
+
+void Editor::CreateDebugLinePipeline()
+{
+	auto& app = Core::Application::Get();
+	VkExtent2D extent = app.GetSwapchain().extent;
+
+	VkViewport viewport = {};
+	viewport.x = 0.0f;
+	viewport.y = 0.0f;
+	viewport.width = static_cast<f32>(extent.width);
+	viewport.height = static_cast<f32>(extent.height);
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+
+	VkRect2D scissor = {};
+	scissor.offset = { 0, 0 };
+	scissor.extent = { extent.width, extent.height };
+
+	VkPushConstantRange debugLinePushConstant = {};
+	debugLinePushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	debugLinePushConstant.offset = 0;
+	debugLinePushConstant.size = sizeof(DLPushConstants);
+
+	VkVertexInputBindingDescription bindingDescription = {};
+	bindingDescription.binding = 0;
+	bindingDescription.stride = sizeof(glm::vec3);
+	bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+	std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
+	attributeDescriptions.resize(1);
+
+	attributeDescriptions[0].binding = 0;
+	attributeDescriptions[0].location = 0;
+	attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+	attributeDescriptions[0].offset = 0;
+
+	VkPipelineDepthStencilStateCreateInfo depthStencil = {};
+	depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	depthStencil.depthTestEnable = VK_FALSE;
+	depthStencil.depthWriteEnable = VK_FALSE;
+	depthStencil.depthBoundsTestEnable = VK_FALSE;
+	depthStencil.stencilTestEnable = VK_FALSE;
+
+	std::vector<Core::DescriptorBinding> bindings =
+	{
+		Core::DescriptorBinding(app.GetVPBuffer(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
+	};
+
+	auto vert = m_ShaderDirectory / "Compiled" / "debug_line.vert.spv";
+	auto frag = m_ShaderDirectory / "Compiled" / "debug_line.frag.spv";
+
+	m_DebugLineShader = app.CreateShader(app.GetRenderTextureRenderPass(), bindings, { debugLinePushConstant },
+		&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, VK_CULL_MODE_NONE, VK_PRIMITIVE_TOPOLOGY_LINE_LIST, vert, frag);
+
+	app.UpdateDescriptorSets(m_DebugLineShader);
 }
 
 void Editor::InitImGui()
@@ -418,4 +507,9 @@ void Editor::RenderImGui()
 
 	ImGui::Render();
 	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), Core::Application::Get().GetCurrentCommandBuffer());
+}
+
+void Editor::DrawDebugLine(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color, f32 lifetime)
+{
+	m_DebugLines.push_back(std::make_unique<DebugLine>(start, end, color, lifetime));
 }

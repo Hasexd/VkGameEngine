@@ -31,10 +31,9 @@ namespace Core
 
 	void Mesh::Bind(VkCommandBuffer commandBuffer) const
 	{
-		std::array vertexBuffers = { m_VertexBuffer.Buffer };
-		std::array offsets = { static_cast<VkDeviceSize>(0) };
+		VkDeviceSize offset = 0;
 
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers.data(), offsets.data());
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_VertexBuffer.Buffer, &offset);
 		vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer.Buffer, 0, VK_INDEX_TYPE_UINT32);
 	}
 

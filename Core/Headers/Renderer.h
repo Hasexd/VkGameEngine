@@ -75,11 +75,15 @@ namespace Core
 			VkRect2D* scissor,
 			VkPipelineDepthStencilStateCreateInfo* depthStencilInfo,
 			VkCullModeFlagBits cullMode,
+			VkPrimitiveTopology topology,
 			const std::filesystem::path& vert,
 			const std::filesystem::path& frag,
 			const std::filesystem::path& geom = "");
 
 		void UpdateDescriptorSets(const Shader& shader);
+
+		Buffer CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
 	private:
 		void InitCoreData();
@@ -99,9 +103,6 @@ namespace Core
 		void RecreateSwapchain();
 
 		void ImmediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
-
-		Buffer CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
-		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
 		Image CreateImage(u32 width, u32 height, VkFormat format, VkImageTiling tiling, VkImageAspectFlags aspects,
 			VkImageUsageFlags usage, VmaMemoryUsage memoryUsage);

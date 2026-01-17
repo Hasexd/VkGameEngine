@@ -309,14 +309,14 @@ namespace Core
 		auto geom = m_ShaderDirectory / "Compiled" / "object.geom.spv";
 
 		m_GraphicsShader = CreateShader(m_RenderTextureRenderPass, bindings, { objPushConstantRange },
-			&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, VK_CULL_MODE_BACK_BIT, vert, frag);
+			&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, VK_CULL_MODE_BACK_BIT, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag);
 
 		UpdateDescriptorSets(m_GraphicsShader);
 
 		m_WireframeShader = CreateShader(
 			m_RenderTextureRenderPass, bindings, { objPushConstantRange },
 			&bindingDescription, attributeDescriptions, &viewport, &scissor,
-			&depthStencil, VK_CULL_MODE_NONE, vert, frag, geom
+			&depthStencil, VK_CULL_MODE_NONE, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag, geom
 		);
 		UpdateDescriptorSets(m_WireframeShader);
 	}
@@ -352,7 +352,7 @@ namespace Core
 		auto vert = m_ShaderDirectory / "Compiled" / "blit.vert.spv";
 		auto frag = m_ShaderDirectory / "Compiled" / "blit.frag.spv";
 
-		m_BlitShader = CreateShader(m_RenderData.RenderPass, bindings, {}, nullptr, {}, &viewport, &scissor, &depthStencil, VK_CULL_MODE_BACK_BIT, vert, frag);
+		m_BlitShader = CreateShader(m_RenderData.RenderPass, bindings, {}, nullptr, {}, &viewport, &scissor, &depthStencil, VK_CULL_MODE_BACK_BIT, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag);
 		UpdateDescriptorSets(m_BlitShader);
 	}
 
@@ -573,6 +573,7 @@ namespace Core
 		VkViewport* viewport, VkRect2D* scissor,
 		VkPipelineDepthStencilStateCreateInfo* depthStencilInfo,
 		VkCullModeFlagBits cullMode,
+		VkPrimitiveTopology topology,
 		const std::filesystem::path& vert,
 		const std::filesystem::path& frag,
 		const std::filesystem::path& geom)
@@ -690,7 +691,7 @@ namespace Core
 		
 		VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
 		inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-		inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		inputAssembly.topology = topology;
 		inputAssembly.primitiveRestartEnable = VK_FALSE;
 
 		VkPipelineViewportStateCreateInfo viewportState = {};
