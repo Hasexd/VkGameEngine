@@ -76,6 +76,7 @@ namespace Core
 			VkPipelineDepthStencilStateCreateInfo* depthStencilInfo,
 			const std::vector<VkDynamicState>& dynamicStates,
 			VkCullModeFlagBits cullMode,
+			VkPolygonMode polygonMode,
 			VkPrimitiveTopology topology,
 			const std::filesystem::path& vert,
 			const std::filesystem::path& frag,

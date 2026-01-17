@@ -77,9 +77,10 @@ namespace Core
 			VkPipelineDepthStencilStateCreateInfo* depthStencilInfo,
 			const std::vector<VkDynamicState>& dynamicStates,
 			VkCullModeFlagBits cullMode,
+			VkPolygonMode polygonMode,
 			VkPrimitiveTopology topology,
 			const std::filesystem::path& vert, const std::filesystem::path& frag) const { return m_Renderer->CreateShader(renderPass, bindings, pushConstantRanges, vtxInputBindingDesc, vtxInputAttrDesc,
-				viewport, scissor, depthStencilInfo, dynamicStates, cullMode, topology, vert, frag); }
+				viewport, scissor, depthStencilInfo, dynamicStates, cullMode, polygonMode, topology, vert, frag); }
 
 		[[nodiscard]] Buffer& GetVPBuffer() { return m_Renderer->GetVPBuffer(); }
 

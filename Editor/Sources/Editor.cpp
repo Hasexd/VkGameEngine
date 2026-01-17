@@ -55,6 +55,13 @@ Editor::Editor()
 	material = obj3->GetComponent<Core::Material>();
 	material->Color = glm::vec3(0.5f, 0.5f, 0.5f);
 
+	/*auto porsche = AddObject<Core::Object>("Porsche 911");
+	porsche->GetComponent<Core::Transform>()->Position = { 5.0f, 2.0f, 10.0f };
+	porsche->AddComponent<Core::Mesh>(Core::Application::CreateMeshFromOBJ("Porsche_911_GT2.obj"));
+	porsche->AddComponent<Core::Material>();
+	material = porsche->GetComponent<Core::Material>();
+	material->Color = glm::vec3(1.0f, 1.0f, 1.0f);*/
+
 	glm::vec2 framebufferSize = app.GetWindow().GetFramebufferSize();
 	m_Camera.AspectRatio = static_cast<f32>(framebufferSize.x) / static_cast<f32>(framebufferSize.y);
 }
@@ -90,6 +97,7 @@ Editor::~Editor()
 
 	vkDestroyDescriptorPool(Core::Application::Get().GetVulkanDevice(), m_ImGuiDescriptorPool, nullptr);
 	m_OutlineShader.Destroy(Core::Application::Get().GetVulkanDevice());
+	m_OutlineFillShader.Destroy(Core::Application::Get().GetVulkanDevice());
 	m_DebugLineShader.Destroy(Core::Application::Get().GetVulkanDevice());
 
 	m_DebugLines.clear();
@@ -131,15 +139,23 @@ void Editor::RenderObjects(Core::Application& app)
 
 void Editor::RenderSelectedObjectOutline(Core::Application& app)
 {
+	if (!m_SelectedObject || !m_SelectedObject->HasComponent<Core::Mesh>())
+		return;
+
 	vkCmdBindPipeline(app.GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_OutlineShader.Pipeline);
 	vkCmdBindDescriptorSets(app.GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
 		m_OutlineShader.PipelineLayout, 0, 1, &m_OutlineShader.DescriptorSet, 0, nullptr);
+	vkCmdSetLineWidth(app.GetCurrentCommandBuffer(), 3.0f);
 
-	if (m_SelectedObject && m_SelectedObject->HasComponent<Core::Mesh>())
-	{
-		PushConstants(m_SelectedObject);
-		m_SelectedObject->Draw(app.GetCurrentCommandBuffer());
-	}
+	PushConstants(m_SelectedObject);
+	m_SelectedObject->Draw(app.GetCurrentCommandBuffer());
+
+	vkCmdBindPipeline(app.GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_OutlineFillShader.Pipeline);
+	vkCmdBindDescriptorSets(app.GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
+		m_OutlineFillShader.PipelineLayout, 0, 1, &m_OutlineFillShader.DescriptorSet, 0, nullptr);
+
+	PushConstants(m_SelectedObject);
+	m_SelectedObject->Draw(app.GetCurrentCommandBuffer());
 }
 
 void Editor::RenderDebugLines(Core::Application& app)
@@ -317,6 +333,7 @@ bool Editor::OnWindowResize(Core::WindowResizeEvent& event)
 	vkDeviceWaitIdle(Core::Application::Get().GetVulkanDevice());
 
 	m_OutlineShader.Destroy(Core::Application::Get().GetVulkanDevice());
+	m_OutlineFillShader.Destroy(Core::Application::Get().GetVulkanDevice());
 	m_DebugLineShader.Destroy(Core::Application::Get().GetVulkanDevice());
 
 	CreateOutlinePipeline();
@@ -370,37 +387,74 @@ void Editor::CreateOutlinePipeline()
 	attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
 	attributeDescriptions[2].offset = offsetof(Core::Vertex, TextureCoordinate);
 
-	VkPipelineDepthStencilStateCreateInfo depthStencil = {};
-	depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-	depthStencil.depthTestEnable = VK_FALSE;
-	depthStencil.depthWriteEnable = VK_FALSE;
-	depthStencil.depthBoundsTestEnable = VK_FALSE;
-	depthStencil.stencilTestEnable = VK_TRUE;
-	depthStencil.front.passOp = VK_STENCIL_OP_KEEP;
-	depthStencil.front.compareOp = VK_COMPARE_OP_NOT_EQUAL;
-	depthStencil.front.reference = 1;
-	depthStencil.front.compareMask = 0xFF;
-	depthStencil.front.writeMask = 0xFF;
-	depthStencil.back = depthStencil.front;
-
-	std::vector<VkDynamicState> dynamicStates =
-	{
-		VK_DYNAMIC_STATE_VIEWPORT,
-		VK_DYNAMIC_STATE_SCISSOR,
-	};
-
 	std::vector<Core::DescriptorBinding> bindings =
 	{
 		Core::DescriptorBinding(app.GetVPBuffer(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
 	};
 
+	std::vector<VkDynamicState> dynamicStates =
+	{
+		VK_DYNAMIC_STATE_VIEWPORT,
+		VK_DYNAMIC_STATE_SCISSOR,
+		VK_DYNAMIC_STATE_LINE_WIDTH
+	};
+
 	auto vert = m_ShaderDirectory / "Compiled" / "outline.vert.spv";
 	auto frag = m_ShaderDirectory / "Compiled" / "outline.frag.spv";
 
-	m_OutlineShader = app.CreateShader(app.GetRenderTextureRenderPass(), bindings, {objPushConstantRange},
-		&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, dynamicStates, VK_CULL_MODE_NONE, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag);
+	VkPipelineDepthStencilStateCreateInfo depthStencilWireframe = {};
+	depthStencilWireframe.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	depthStencilWireframe.depthTestEnable = VK_TRUE;
+	depthStencilWireframe.depthWriteEnable = VK_FALSE;
+	depthStencilWireframe.depthCompareOp = VK_COMPARE_OP_LESS;
+	depthStencilWireframe.depthBoundsTestEnable = VK_FALSE;
+	depthStencilWireframe.stencilTestEnable = VK_FALSE;
+
+	m_OutlineShader = app.CreateShader(
+		app.GetRenderTextureRenderPass(),
+		bindings,
+		{ objPushConstantRange },
+		&bindingDescription,
+		attributeDescriptions,
+		&viewport,
+		&scissor,
+		&depthStencilWireframe,
+		dynamicStates,
+		VK_CULL_MODE_FRONT_BIT,
+		VK_POLYGON_MODE_LINE,
+		VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+		vert,
+		frag
+	);
 
 	app.UpdateDescriptorSets(m_OutlineShader);
+
+	VkPipelineDepthStencilStateCreateInfo depthStencilFill = {};
+	depthStencilFill.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	depthStencilFill.depthTestEnable = VK_TRUE;
+	depthStencilFill.depthWriteEnable = VK_TRUE;
+	depthStencilFill.depthCompareOp = VK_COMPARE_OP_LESS;
+	depthStencilFill.depthBoundsTestEnable = VK_FALSE;
+	depthStencilFill.stencilTestEnable = VK_FALSE;
+
+	m_OutlineFillShader = app.CreateShader(
+		app.GetRenderTextureRenderPass(),
+		bindings,
+		{ objPushConstantRange },
+		&bindingDescription,
+		attributeDescriptions,
+		&viewport,
+		&scissor,
+		&depthStencilFill,
+		dynamicStates,
+		VK_CULL_MODE_BACK_BIT,
+		VK_POLYGON_MODE_FILL,
+		VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+		vert,
+		frag
+	);
+
+	app.UpdateDescriptorSets(m_OutlineFillShader);
 }
 
 void Editor::CreateDebugLinePipeline()
@@ -461,7 +515,7 @@ void Editor::CreateDebugLinePipeline()
 	auto frag = m_ShaderDirectory / "Compiled" / "debug_line.frag.spv";
 
 	m_DebugLineShader = app.CreateShader(app.GetRenderTextureRenderPass(), bindings, { debugLinePushConstant },
-		&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, dynamicStates, VK_CULL_MODE_NONE, VK_PRIMITIVE_TOPOLOGY_LINE_LIST, vert, frag);
+		&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, dynamicStates, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, VK_PRIMITIVE_TOPOLOGY_LINE_LIST, vert, frag);
 
 	app.UpdateDescriptorSets(m_DebugLineShader);
 }
@@ -581,6 +635,9 @@ void Editor::DrawDebugLine(const glm::vec3& start, const glm::vec3& end, const g
 
 bool Editor::PickObject(const Core::Ray& ray)
 {
+	f32 closestDistance = std::numeric_limits<f32>::max();
+	Core::Object* closestObject = nullptr;
+
 	for (const auto& obj : m_Objects)
 	{
 		if (!obj->HasComponent<Core::Mesh>())
@@ -612,17 +669,32 @@ bool Editor::PickObject(const Core::Ray& ray)
 			localRay.Origin = localOrigin;
 			localRay.Direction = localDirection;
 
-			if (RayTriangleIntersection(localRay, v0, v1, v2))
+			f32 distance;
+			if (RayTriangleIntersection(localRay, v0, v1, v2, distance))
 			{
-				m_SelectedObject = obj.get();
-				return true;
+				glm::vec3 localIntersection = localOrigin + localDirection * distance;
+				glm::vec3 worldIntersection = glm::vec3(transform->GetModelMatrix() * glm::vec4(localIntersection, 1.0f));
+				f32 worldDistance = glm::length(worldIntersection - ray.Origin);
+
+				if (worldDistance < closestDistance)
+				{
+					closestDistance = worldDistance;
+					closestObject = obj.get();
+				}
 			}
 		}
 	}
+
+	if (closestObject != nullptr)
+	{
+		m_SelectedObject = closestObject;
+		return true;
+	}
+
 	return false;
 }
 
-bool Editor::RayTriangleIntersection(const Core::Ray& ray, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2)
+bool Editor::RayTriangleIntersection(const Core::Ray& ray, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2, f32& outDistance)
 {
 	// https://en.wikipedia.org/wiki/Möller–Trumbore_intersection_algorithm
 
@@ -652,7 +724,10 @@ bool Editor::RayTriangleIntersection(const Core::Ray& ray, const glm::vec3& v0, 
 	f32 t = invDet * glm::dot(edge2, sCrossEdge1);
 
 	if (t > epsilon)
+	{
+		outDistance = t;
 		return true;
+	}
 
 	return false;
 }

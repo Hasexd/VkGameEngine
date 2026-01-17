@@ -25,9 +25,6 @@ layout(push_constant) uniform PushConstants
 
 void main()
 {
-    float outlineWidth = 0.03;
-    vec3 expandedPosition = inPosition + normalize(inNormal) * outlineWidth;
-    
-    gl_Position = vp.projection * vp.view * pushConstants.model * vec4(expandedPosition, 1.0);
+    gl_Position = vp.projection * vp.view * pushConstants.model * vec4(inPosition, 1.0);
     fragColor = vec3(1.0, 0.647, 0.0);
 }

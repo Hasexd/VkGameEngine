@@ -58,7 +58,7 @@ private:
 	void CreateOutlinePipeline();
 	void CreateDebugLinePipeline();
 
-	bool RayTriangleIntersection(const Core::Ray& ray, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2);
+	bool RayTriangleIntersection(const Core::Ray& ray, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2, f32& outDistance);
 
 	bool PickObject(const Core::Ray& ray);
 private:
@@ -77,6 +77,7 @@ private:
 	std::filesystem::path m_ShaderDirectory = std::filesystem::path(PATH_TO_SHADERS);
 
 	Core::Shader m_OutlineShader;
+	Core::Shader m_OutlineFillShader;
 	Core::Shader m_DebugLineShader;
 
 	static inline std::vector<std::unique_ptr<DebugLine>> m_DebugLines;

@@ -292,13 +292,7 @@ namespace Core
 		depthStencil.depthWriteEnable = VK_TRUE;
 		depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
 		depthStencil.depthBoundsTestEnable = VK_FALSE;
-		depthStencil.stencilTestEnable = VK_TRUE;
-		depthStencil.front.passOp = VK_STENCIL_OP_REPLACE;
-		depthStencil.front.compareOp = VK_COMPARE_OP_ALWAYS;
-		depthStencil.front.reference = 1;
-		depthStencil.front.compareMask = 0xFF;
-		depthStencil.front.writeMask = 0xFF;
-		depthStencil.back = depthStencil.front;
+		depthStencil.stencilTestEnable = VK_FALSE;
 
 		std::vector<DescriptorBinding> bindings =
 		{
@@ -316,14 +310,14 @@ namespace Core
 		};
 
 		m_GraphicsShader = CreateShader(m_RenderTextureRenderPass, bindings, { objPushConstantRange },
-			&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, dynamicStates, VK_CULL_MODE_BACK_BIT, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag);
+			&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, dynamicStates, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag);
 
 		UpdateDescriptorSets(m_GraphicsShader);
 
 		m_WireframeShader = CreateShader(
 			m_RenderTextureRenderPass, bindings, { objPushConstantRange },
 			&bindingDescription, attributeDescriptions, &viewport, &scissor,
-			&depthStencil, dynamicStates, VK_CULL_MODE_NONE, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag, geom
+			&depthStencil, dynamicStates, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag, geom
 		);
 		UpdateDescriptorSets(m_WireframeShader);
 	}
@@ -366,7 +360,7 @@ namespace Core
 		};
 
 		m_BlitShader = CreateShader(m_RenderData.RenderPass, bindings, {}, nullptr, {}, &viewport, &scissor, &depthStencil, dynamicStates,
-			VK_CULL_MODE_BACK_BIT, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag);
+			VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag);
 		UpdateDescriptorSets(m_BlitShader);
 	}
 
@@ -588,6 +582,7 @@ namespace Core
 		VkPipelineDepthStencilStateCreateInfo* depthStencilInfo,
 		const std::vector<VkDynamicState>& dynamicStates,
 		VkCullModeFlagBits cullMode,
+		VkPolygonMode polygonMode,
 		VkPrimitiveTopology topology,
 		const std::filesystem::path& vert,
 		const std::filesystem::path& frag,
@@ -719,7 +714,7 @@ namespace Core
 		rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 		rasterizer.depthClampEnable = VK_FALSE;
 		rasterizer.rasterizerDiscardEnable = VK_FALSE;
-		rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+		rasterizer.polygonMode = polygonMode;
 		rasterizer.lineWidth = 1.0f;
 		rasterizer.cullMode = cullMode;
 		rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
