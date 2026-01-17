@@ -55,6 +55,7 @@ Editor::Editor()
 	material = obj3->GetComponent<Core::Material>();
 	material->Color = glm::vec3(0.5f, 0.5f, 0.5f);
 
+	// uncomment for porsche
 	/*auto porsche = AddObject<Core::Object>("Porsche 911");
 	porsche->GetComponent<Core::Transform>()->Position = { 5.0f, 2.0f, 10.0f };
 	porsche->AddComponent<Core::Mesh>(Core::Application::CreateMeshFromOBJ("Porsche_911_GT2.obj"));
@@ -685,7 +686,7 @@ bool Editor::PickObject(const Core::Ray& ray)
 		}
 	}
 
-	if (closestObject != nullptr)
+	if (closestObject != nullptr && closestObject != m_SelectedObject)
 	{
 		m_SelectedObject = closestObject;
 		return true;
