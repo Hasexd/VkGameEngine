@@ -19,23 +19,6 @@ Editor::Editor()
 	vkGetPhysicalDeviceProperties(app.GetPhysicalDevice(), &props);
 	s_MaxLineWidth = props.limits.lineWidthRange[1];
 
-	auto obj = AddObject<Cube>("Red cube");
-	obj->GetComponent<Core::Transform>()->Position = { 0.0f, 0.0f, 5.0f };
-	obj->AddComponent<Core::Material>();
-	
-	auto material = obj->GetComponent<Core::Material>();
-	material->Color = glm::vec3(1.0f, 0.0f, 0.0f);
-
-	auto obj2 = AddObject<Cube>("Green cube");
-	obj2->GetComponent<Core::Transform>()->Position = { -5.0f, 0.0f, 5.0f };
-	obj2->AddComponent<Core::Material>();
-
-	material = obj2->GetComponent<Core::Material>();
-	material->Color = glm::vec3(0.0f, 1.0f, 0.0f);
-
-	glm::vec2 framebufferSize = app.GetWindow().GetFramebufferSize();
-	m_Camera.AspectRatio = static_cast<f32>(framebufferSize.x) / static_cast<f32>(framebufferSize.y);
-
 	app.SetCursorState(GLFW_CURSOR_DISABLED);
 	app.SetBackgroundColor({0.0f, 0.0f, 0.0f, 1.0f});
 
@@ -51,9 +34,29 @@ Editor::Editor()
 	CreateOutlinePipeline();
 	CreateDebugLinePipeline();
 
-	DrawDebugLine(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 10.0f), glm::vec3(0.0f, 0.0f, 1.0f), 5.0f, 2.0f);
-	DrawDebugLine(glm::vec3(-2.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 10.0f), glm::vec3(1.0f, 0.0f, 1.0f), 5.0f, 2.0f);
-	DrawDebugLine(glm::vec3(2.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 10.0f), glm::vec3(1.0f, 1.0f, 0.0f), 5.0f, 2.0f);
+	auto obj = AddObject<Cube>("Red cube");
+	obj->GetComponent<Core::Transform>()->Position = { 0.0f, 0.0f, 5.0f };
+	obj->AddComponent<Core::Material>();
+
+	auto material = obj->GetComponent<Core::Material>();
+	material->Color = glm::vec3(1.0f, 0.0f, 0.0f);
+
+	auto obj2 = AddObject<Cube>("Green cube");
+	obj2->GetComponent<Core::Transform>()->Position = { -5.0f, 0.0f, 5.0f };
+	obj2->AddComponent<Core::Material>();
+
+	material = obj2->GetComponent<Core::Material>();
+	material->Color = glm::vec3(0.0f, 1.0f, 0.0f);
+
+	auto obj3 = AddObject<Plane>("Floor");
+	obj3->GetComponent<Core::Transform>()->Position = { 0.0f, -2.0f, 0.0f };
+	obj3->GetComponent<Core::Transform>()->Scale = { 20.0f, 1.0f, 20.0f };
+	obj3->AddComponent<Core::Material>();
+	material = obj3->GetComponent<Core::Material>();
+	material->Color = glm::vec3(0.5f, 0.5f, 0.5f);
+
+	glm::vec2 framebufferSize = app.GetWindow().GetFramebufferSize();
+	m_Camera.AspectRatio = static_cast<f32>(framebufferSize.x) / static_cast<f32>(framebufferSize.y);
 }
 
 Editor::~Editor()
@@ -255,7 +258,7 @@ bool Editor::OnMouseMoved(Core::MouseMovedEvent& event)
 	}
 
 	f32 xOffset = m_LastMouseX - event.GetX();
-	f32 yOffset = event.GetY() - m_LastMouseY;
+	f32 yOffset = m_LastMouseY - event.GetY();
 	m_LastMouseX = event.GetX();
 	m_LastMouseY = event.GetY();
 
@@ -273,7 +276,7 @@ bool Editor::OnMouseButtonPressed(Core::MouseButtonPressedEvent& event)
 	{
 		Core::Ray ray = {};
 		ray.Origin = m_Camera.Position;
-		ray.Origin.z += 0.1f;
+		ray.Origin.z += 0.01f;
 
 		glm::vec2 mousePos = Core::Application::Get().GetWindow().GetMousePos();
 		glm::vec2 framebufferSize = Core::Application::Get().GetWindow().GetFramebufferSize();
@@ -535,7 +538,7 @@ void Editor::RenderImGui()
 
 	if (m_SelectedObject)
 	{
-		Core::Transform* transform = m_SelectedObject->GetComponent<Core::Transform>();
+		auto transform = m_SelectedObject->GetComponent<Core::Transform>();
 		ImGui::InputFloat3("Position", &transform->Position.x);
 		ImGui::InputFloat3("Rotation", &transform->Rotation.x);
 		ImGui::InputFloat3("Scale", &transform->Scale.x);
@@ -594,6 +597,13 @@ bool Editor::PickObject(const Core::Ray& ray)
 
 		for (usize i = 0; i < indices.size(); i += 3)
 		{
+			if (indices[i] >= vertices.size() ||
+				indices[i + 1] >= vertices.size() ||
+				indices[i + 2] >= vertices.size())
+			{
+				continue;
+			}
+
 			glm::vec3 v0 = vertices[indices[i]].Position;
 			glm::vec3 v1 = vertices[indices[i + 1]].Position;
 			glm::vec3 v2 = vertices[indices[i + 2]].Position;

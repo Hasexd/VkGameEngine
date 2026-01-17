@@ -21,6 +21,7 @@
 #include "VkTypes.h"
 #include "DebugLine.h"
 #include "Ray.h"
+#include "Plane.h"
 
 class Editor : public Core::Layer
 {
