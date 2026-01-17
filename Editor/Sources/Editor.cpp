@@ -13,6 +13,12 @@ namespace
 
 Editor::Editor()
 {
+	auto& app = Core::Application::Get();
+	VkPhysicalDeviceProperties props;
+
+	vkGetPhysicalDeviceProperties(app.GetPhysicalDevice(), &props);
+	s_MaxLineWidth = props.limits.lineWidthRange[1];
+
 	auto obj = AddObject<Cube>("Red cube");
 	obj->GetComponent<Core::Transform>()->Position = { 0.0f, 0.0f, 5.0f };
 	obj->AddComponent<Core::Material>();
@@ -27,15 +33,15 @@ Editor::Editor()
 	material = obj2->GetComponent<Core::Material>();
 	material->Color = glm::vec3(0.0f, 1.0f, 0.0f);
 
-	glm::vec2 framebufferSize = Core::Application::GetWindow().GetFramebufferSize();
+	glm::vec2 framebufferSize = app.GetWindow().GetFramebufferSize();
 	m_Camera.AspectRatio = static_cast<f32>(framebufferSize.x) / static_cast<f32>(framebufferSize.y);
 
-	Core::Application::Get().SetCursorState(GLFW_CURSOR_DISABLED);
-	Core::Application::Get().SetBackgroundColor({0.0f, 0.0f, 0.0f, 1.0f});
+	app.SetCursorState(GLFW_CURSOR_DISABLED);
+	app.SetBackgroundColor({0.0f, 0.0f, 0.0f, 1.0f});
 
 	InitImGui();
 
-	Core::Application::Get().SetPreFrameRenderFunction([this]() -> void 
+	app.SetPreFrameRenderFunction([this]() -> void 
 		{
 			ImGui_ImplVulkan_NewFrame();
 			ImGui_ImplGlfw_NewFrame();
@@ -45,9 +51,9 @@ Editor::Editor()
 	CreateOutlinePipeline();
 	CreateDebugLinePipeline();
 
-	DrawDebugLine(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 10.0f), glm::vec3(0.0f, 0.0f, 1.0f), 5.0f);
-	DrawDebugLine(glm::vec3(-2.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 10.0f), glm::vec3(1.0f, 0.0f, 1.0f), 5.0f);
-	DrawDebugLine(glm::vec3(2.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 10.0f), glm::vec3(1.0f, 1.0f, 0.0f), 5.0f);
+	DrawDebugLine(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 10.0f), glm::vec3(0.0f, 0.0f, 1.0f), 5.0f, 2.0f);
+	DrawDebugLine(glm::vec3(-2.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 10.0f), glm::vec3(1.0f, 0.0f, 1.0f), 5.0f, 2.0f);
+	DrawDebugLine(glm::vec3(2.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 10.0f), glm::vec3(1.0f, 1.0f, 0.0f), 5.0f, 2.0f);
 }
 
 Editor::~Editor()
@@ -142,10 +148,10 @@ void Editor::RenderDebugLines(Core::Application& app)
 	for (const auto& line : m_DebugLines)
 	{
 		DLPushConstants dlPc = {};
-		dlPc.Model = line->GetModelMatrix();
 		dlPc.Color = line->GetColor();
 
 		vkCmdPushConstants(app.GetCurrentCommandBuffer(), m_DebugLineShader.PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DLPushConstants), &dlPc);
+		vkCmdSetLineWidth(app.GetCurrentCommandBuffer(), line->Thickness);
 		line->Draw();
 	}
 }
@@ -337,6 +343,12 @@ void Editor::CreateOutlinePipeline()
 	depthStencil.front.writeMask = 0xFF;
 	depthStencil.back = depthStencil.front;
 
+	std::vector<VkDynamicState> dynamicStates =
+	{
+		VK_DYNAMIC_STATE_VIEWPORT,
+		VK_DYNAMIC_STATE_SCISSOR,
+	};
+
 	std::vector<Core::DescriptorBinding> bindings =
 	{
 		Core::DescriptorBinding(app.GetVPBuffer(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
@@ -346,7 +358,7 @@ void Editor::CreateOutlinePipeline()
 	auto frag = m_ShaderDirectory / "Compiled" / "outline.frag.spv";
 
 	m_OutlineShader = app.CreateShader(app.GetRenderTextureRenderPass(), bindings, {objPushConstantRange},
-		&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, VK_CULL_MODE_NONE, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag);
+		&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, dynamicStates, VK_CULL_MODE_NONE, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag);
 
 	app.UpdateDescriptorSets(m_OutlineShader);
 }
@@ -393,6 +405,13 @@ void Editor::CreateDebugLinePipeline()
 	depthStencil.depthBoundsTestEnable = VK_FALSE;
 	depthStencil.stencilTestEnable = VK_FALSE;
 
+	std::vector<VkDynamicState> dynamicStates =
+	{
+		VK_DYNAMIC_STATE_VIEWPORT,
+		VK_DYNAMIC_STATE_SCISSOR,
+		VK_DYNAMIC_STATE_LINE_WIDTH
+	};
+
 	std::vector<Core::DescriptorBinding> bindings =
 	{
 		Core::DescriptorBinding(app.GetVPBuffer(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
@@ -402,7 +421,7 @@ void Editor::CreateDebugLinePipeline()
 	auto frag = m_ShaderDirectory / "Compiled" / "debug_line.frag.spv";
 
 	m_DebugLineShader = app.CreateShader(app.GetRenderTextureRenderPass(), bindings, { debugLinePushConstant },
-		&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, VK_CULL_MODE_NONE, VK_PRIMITIVE_TOPOLOGY_LINE_LIST, vert, frag);
+		&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, dynamicStates, VK_CULL_MODE_NONE, VK_PRIMITIVE_TOPOLOGY_LINE_LIST, vert, frag);
 
 	app.UpdateDescriptorSets(m_DebugLineShader);
 }
@@ -509,7 +528,13 @@ void Editor::RenderImGui()
 	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), Core::Application::Get().GetCurrentCommandBuffer());
 }
 
-void Editor::DrawDebugLine(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color, f32 lifetime)
+void Editor::DrawDebugLine(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color, f32 lifetime, f32 thickness)
 {
-	m_DebugLines.push_back(std::make_unique<DebugLine>(start, end, color, lifetime));
+	if (thickness < 1.0f || thickness > s_MaxLineWidth)
+	{
+		LOG_WARN("Debug line thickness: {} is out of the acceptable bounds [{} - {}], the value will be clamped.", thickness, 1.0f, s_MaxLineWidth);
+		thickness = glm::clamp(thickness, 1.0f, s_MaxLineWidth);
+	}
+
+	m_DebugLines.push_back(std::make_unique<DebugLine>(start, end, color, lifetime, thickness));
 }

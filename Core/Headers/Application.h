@@ -71,14 +71,15 @@ namespace Core
 		[[nodiscard]] Shader CreateShader(const VkRenderPass& renderPass, const std::vector<DescriptorBinding>& bindings,
 			const std::vector<VkPushConstantRange>& pushConstantRanges,
 			VkVertexInputBindingDescription* vtxInputBindingDesc,
-			std::vector<VkVertexInputAttributeDescription> vtxInputAttrDesc,
+			const std::vector<VkVertexInputAttributeDescription>& vtxInputAttrDesc,
 			VkViewport* viewport,
 			VkRect2D* scissor,
 			VkPipelineDepthStencilStateCreateInfo* depthStencilInfo,
+			const std::vector<VkDynamicState>& dynamicStates,
 			VkCullModeFlagBits cullMode,
 			VkPrimitiveTopology topology,
 			const std::filesystem::path& vert, const std::filesystem::path& frag) const { return m_Renderer->CreateShader(renderPass, bindings, pushConstantRanges, vtxInputBindingDesc, vtxInputAttrDesc,
-				viewport, scissor, depthStencilInfo, cullMode, topology, vert, frag); }
+				viewport, scissor, depthStencilInfo, dynamicStates, cullMode, topology, vert, frag); }
 
 		[[nodiscard]] Buffer& GetVPBuffer() { return m_Renderer->GetVPBuffer(); }
 

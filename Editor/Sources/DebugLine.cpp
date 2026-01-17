@@ -1,14 +1,9 @@
 #include "DebugLine.h"
 
-DebugLine::DebugLine(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color, f32 lifetime) :
-	Lifetime(lifetime), m_Color(color)
+DebugLine::DebugLine(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color, f32 lifetime, f32 thickness) :
+	Lifetime(lifetime), Thickness(thickness), m_Color(color)
 {
 	CreateBuffers(start, end);
-
-	m_Transform.Position = start;
-	m_Transform.Rotation = glm::vec3(0.0f);
-	m_Transform.Scale = glm::vec3(1.0f);
-
 	s_Instances++;
 }
 
@@ -36,40 +31,41 @@ void DebugLine::CreateBuffers(const glm::vec3& start, const glm::vec3& end)
 {
 	auto& app = Core::Application::Get();
 
+	std::array<glm::vec3, 2> vertices = { start, end, };
+
 	Core::Buffer stagingBuffer = app.CreateBuffer(
-		sizeof(glm::vec3) * 2,
+		sizeof(glm::vec3) * vertices.size(),
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		VMA_MEMORY_USAGE_CPU_ONLY
 	);
 
-	m_VertexBuffer = app.CreateBuffer(sizeof(glm::vec3) * 2, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-
-	std::array<glm::vec3, 2> vertices = { glm::vec3(0.0f), end - start };
+	m_VertexBuffer = app.CreateBuffer(sizeof(glm::vec3) * vertices.size(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
 	void* data;
 	vmaMapMemory(app.GetVmaAllocator(), stagingBuffer.Allocation, &data);
-	std::memcpy(data, vertices.data(), sizeof(glm::vec3) * 2);
+	std::memcpy(data, vertices.data(), sizeof(glm::vec3) * vertices.size());
 	vmaUnmapMemory(app.GetVmaAllocator(), stagingBuffer.Allocation);
 
-	app.CopyBuffer(stagingBuffer.Buffer, m_VertexBuffer.Buffer, sizeof(glm::vec3) * 2);
+	app.CopyBuffer(stagingBuffer.Buffer, m_VertexBuffer.Buffer, sizeof(glm::vec3) * vertices.size());
 	vmaDestroyBuffer(app.GetVmaAllocator(), stagingBuffer.Buffer, stagingBuffer.Allocation);
 
 	if (!s_Instances)
 	{
+		std::array<u32, 2> indices = { 0, 1 };
+
 		stagingBuffer = app.CreateBuffer(
-			sizeof(u32) * 2,
+			sizeof(u32) * indices.size(),
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VMA_MEMORY_USAGE_CPU_ONLY
 		);
 
-		std::array<u32, 2> indices = { 0, 1 };
-		s_IndexBuffer = app.CreateBuffer(sizeof(u32) * 2, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+		s_IndexBuffer = app.CreateBuffer(sizeof(u32) * indices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
 		vmaMapMemory(app.GetVmaAllocator(), stagingBuffer.Allocation, &data);
-		std::memcpy(data, indices.data(), sizeof(u32) * 2);
+		std::memcpy(data, indices.data(), sizeof(u32) * indices.size());
 		vmaUnmapMemory(app.GetVmaAllocator(), stagingBuffer.Allocation);
 
-		Core::Application::Get().CopyBuffer(stagingBuffer.Buffer, s_IndexBuffer.Buffer, sizeof(u32) * 2);
+		Core::Application::Get().CopyBuffer(stagingBuffer.Buffer, s_IndexBuffer.Buffer, sizeof(u32) * indices.size());
 		vmaDestroyBuffer(app.GetVmaAllocator(), stagingBuffer.Buffer, stagingBuffer.Allocation);
 	}
 }

@@ -37,7 +37,7 @@ public:
 	bool OnKeyReleased(Core::KeyReleasedEvent& event);
 	bool OnWindowResize(Core::WindowResizeEvent& event);
 
-	static void DrawDebugLine(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color, f32 lifetime);
+	static void DrawDebugLine(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color, f32 lifetime, f32 thickness);
 
 	template<std::derived_from<Core::Object> T, typename... Args>
 	T* AddObject(const std::string& name, Args&&... args);
@@ -74,6 +74,9 @@ private:
 	Core::Shader m_DebugLineShader;
 
 	static inline std::vector<std::unique_ptr<DebugLine>> m_DebugLines;
+
+	// do not modify
+	static inline f32 s_MaxLineWidth = 1.0f;
 
 	bool m_WireframeMode = false;
 };

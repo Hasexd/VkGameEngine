@@ -114,6 +114,7 @@ namespace Core
 		VkPhysicalDeviceFeatures features = {};
 		features.fillModeNonSolid = VK_TRUE;
 		features.geometryShader = VK_TRUE;
+		features.wideLines = VK_TRUE;
 
 		vkb::PhysicalDeviceSelector selector(m_CoreData.Instance);
 		vkb::PhysicalDevice physicalDevice =
@@ -308,15 +309,21 @@ namespace Core
 		auto frag = m_ShaderDirectory / "Compiled" / "object.frag.spv";
 		auto geom = m_ShaderDirectory / "Compiled" / "object.geom.spv";
 
+		std::vector<VkDynamicState> dynamicStates =
+		{
+			VK_DYNAMIC_STATE_VIEWPORT,
+			VK_DYNAMIC_STATE_SCISSOR
+		};
+
 		m_GraphicsShader = CreateShader(m_RenderTextureRenderPass, bindings, { objPushConstantRange },
-			&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, VK_CULL_MODE_BACK_BIT, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag);
+			&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, dynamicStates, VK_CULL_MODE_BACK_BIT, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag);
 
 		UpdateDescriptorSets(m_GraphicsShader);
 
 		m_WireframeShader = CreateShader(
 			m_RenderTextureRenderPass, bindings, { objPushConstantRange },
 			&bindingDescription, attributeDescriptions, &viewport, &scissor,
-			&depthStencil, VK_CULL_MODE_NONE, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag, geom
+			&depthStencil, dynamicStates, VK_CULL_MODE_NONE, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag, geom
 		);
 		UpdateDescriptorSets(m_WireframeShader);
 	}
@@ -352,7 +359,14 @@ namespace Core
 		auto vert = m_ShaderDirectory / "Compiled" / "blit.vert.spv";
 		auto frag = m_ShaderDirectory / "Compiled" / "blit.frag.spv";
 
-		m_BlitShader = CreateShader(m_RenderData.RenderPass, bindings, {}, nullptr, {}, &viewport, &scissor, &depthStencil, VK_CULL_MODE_BACK_BIT, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag);
+		std::vector<VkDynamicState> dynamicStates =
+		{
+			VK_DYNAMIC_STATE_VIEWPORT,
+			VK_DYNAMIC_STATE_SCISSOR
+		};
+
+		m_BlitShader = CreateShader(m_RenderData.RenderPass, bindings, {}, nullptr, {}, &viewport, &scissor, &depthStencil, dynamicStates,
+			VK_CULL_MODE_BACK_BIT, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag);
 		UpdateDescriptorSets(m_BlitShader);
 	}
 
@@ -569,9 +583,10 @@ namespace Core
 	Shader Renderer::CreateShader(const VkRenderPass& renderPass, const std::vector<DescriptorBinding>& bindings,
 		const std::vector<VkPushConstantRange>& pushConstantRange,
 		VkVertexInputBindingDescription* vtxInputBindingDesc,
-		std::vector<VkVertexInputAttributeDescription> vtxInputAttrDesc,
+		const std::vector<VkVertexInputAttributeDescription>& vtxInputAttrDesc,
 		VkViewport* viewport, VkRect2D* scissor,
 		VkPipelineDepthStencilStateCreateInfo* depthStencilInfo,
+		const std::vector<VkDynamicState>& dynamicStates,
 		VkCullModeFlagBits cullMode,
 		VkPrimitiveTopology topology,
 		const std::filesystem::path& vert,
@@ -681,7 +696,6 @@ namespace Core
 		fragStageInfo.pName = "main";
 		shaderStages.push_back(fragStageInfo);
 
-		
 		VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
 		vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 		vertexInputInfo.vertexBindingDescriptionCount = vtxInputBindingDesc ? 1 : 0;
@@ -731,8 +745,6 @@ namespace Core
 		colorBlending.blendConstants[1] = 0.0f;
 		colorBlending.blendConstants[2] = 0.0f;
 		colorBlending.blendConstants[3] = 0.0f;
-
-		std::array dynamicStates = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 
 		VkPipelineDynamicStateCreateInfo dynamicInfo = {};
 		dynamicInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;

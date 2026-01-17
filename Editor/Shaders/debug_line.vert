@@ -12,12 +12,11 @@ layout(binding = 0) readonly buffer VP
 
 layout(push_constant) uniform PushConstants
 {
-	mat4 model;
 	vec3 color;
 } pushConstants;
 
 void main()
 {
-	gl_Position = vp.projection * vp.view * pushConstants.model * vec4(inPosition, 1.0);
+	gl_Position = vp.projection * vp.view * vec4(inPosition, 1.0);
 	fragColor = pushConstants.color;
 }
