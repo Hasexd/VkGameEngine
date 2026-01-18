@@ -28,12 +28,15 @@ namespace Core
 
 		void Draw(VkCommandBuffer cmd);
 
+		void SetVisible(bool isVisible) { m_IsVisible = isVisible; }
+		[[nodiscard]] bool IsVisible() const { return m_IsVisible; }
 
 		[[nodiscard]] const std::string& GetName() const { return m_Name; }
 	private:
 		UUID m_ID;
 		ECS& m_ECS;
 		std::string m_Name;
+		bool m_IsVisible = true;
 	};
 
 	template<std::derived_from<Component> T, typename... Args>

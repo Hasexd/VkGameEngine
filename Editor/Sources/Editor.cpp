@@ -127,7 +127,7 @@ void Editor::RenderObjects(Core::Application& app)
 {
 	for (const auto& obj : m_Objects)
 	{
-		if (obj->HasComponent<Core::Mesh>())
+		if (obj->HasComponent<Core::Mesh>() && obj->IsVisible())
 		{
 			PushConstants(obj.get());
 			obj->Draw(Core::Application::Get().GetCurrentCommandBuffer());
@@ -305,8 +305,11 @@ bool Editor::OnMouseButtonPressed(Core::MouseButtonPressedEvent& event)
 
 		ray.Direction = glm::normalize(direction);
 
-		if (PickObject(ray))
+		Core::HitResult hitResult = Raycast(ray.Origin, ray.Origin + ray.Direction * 1e10f);
+
+		if (hitResult.Hit && hitResult.HitObject != m_SelectedObject)
 		{
+			m_SelectedObject = hitResult.HitObject;
 			return true;
 		}
 	}
@@ -644,8 +647,24 @@ void Editor::DrawDebugLine(const glm::vec3& start, const glm::vec3& end, const g
 	m_DebugLines.push_back(std::make_unique<DebugLine>(start, end, color, lifetime, thickness));
 }
 
-bool Editor::PickObject(const Core::Ray& ray)
+Core::HitResult Editor::Raycast(const glm::vec3& start, const glm::vec3& end)
 {
+	glm::vec3 rayDirection = end - start;
+	f32 rayLength = glm::length(rayDirection);
+
+	constexpr f32 MAX_RAY_LENGTH = 1e6f;
+	bool isInfiniteRay = std::isinf(rayLength) || rayLength > MAX_RAY_LENGTH;
+
+	if (isInfiniteRay)
+	{
+		rayDirection = glm::normalize(rayDirection);
+		rayLength = std::numeric_limits<f32>::max();
+	}
+	else
+	{
+		rayDirection = glm::normalize(rayDirection);
+	}
+
 	f32 closestDistance = std::numeric_limits<f32>::max();
 	Core::Object* closestObject = nullptr;
 
@@ -656,8 +675,9 @@ bool Editor::PickObject(const Core::Ray& ray)
 
 		auto transform = obj->GetComponent<Core::Transform>();
 		glm::mat4 invTransform = glm::inverse(transform->GetModelMatrix());
-		glm::vec3 localOrigin = glm::vec3(invTransform * glm::vec4(ray.Origin, 1.0f));
-		glm::vec3 localDirection = glm::normalize(glm::vec3(invTransform * glm::vec4(ray.Direction, 0.0f)));
+
+		glm::vec3 localOrigin = glm::vec3(invTransform * glm::vec4(start, 1.0f));
+		glm::vec3 localDirection = glm::normalize(glm::vec3(invTransform * glm::vec4(rayDirection, 0.0f)));
 
 		auto mesh = obj->GetComponent<Core::Mesh>();
 		const auto& vertices = mesh->GetVertices();
@@ -685,9 +705,9 @@ bool Editor::PickObject(const Core::Ray& ray)
 			{
 				glm::vec3 localIntersection = localOrigin + localDirection * distance;
 				glm::vec3 worldIntersection = glm::vec3(transform->GetModelMatrix() * glm::vec4(localIntersection, 1.0f));
-				f32 worldDistance = glm::length(worldIntersection - ray.Origin);
+				f32 worldDistance = glm::length(worldIntersection - start);
 
-				if (worldDistance < closestDistance)
+				if (worldDistance < closestDistance && worldDistance <= rayLength)
 				{
 					closestDistance = worldDistance;
 					closestObject = obj.get();
@@ -696,15 +716,13 @@ bool Editor::PickObject(const Core::Ray& ray)
 		}
 	}
 
-	if (closestObject != nullptr && closestObject != m_SelectedObject)
-	{
-		m_SelectedObject = closestObject;
-		return true;
-	}
+	Core::HitResult result = {};
+	result.HitObject = closestObject;
+	result.HitDistance = closestDistance;
+	result.Hit = (closestObject != nullptr);
 
-	return false;
+	return result;
 }
-
 bool Editor::RayTriangleIntersection(const Core::Ray& ray, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2, f32& outDistance)
 {
 	// https://en.wikipedia.org/wiki/Möller–Trumbore_intersection_algorithm

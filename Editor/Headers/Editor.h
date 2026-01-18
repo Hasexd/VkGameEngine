@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 #include <unordered_set>
+#include <numeric>
 
 #include <GLFW/glfw3.h>
 
@@ -60,7 +61,7 @@ private:
 
 	bool RayTriangleIntersection(const Core::Ray& ray, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2, f32& outDistance);
 
-	bool PickObject(const Core::Ray& ray);
+	Core::HitResult Raycast(const glm::vec3& start, const glm::vec3& end);
 private:
 	Core::ECS m_ECS;
 	Core::Camera m_Camera;
@@ -70,6 +71,7 @@ private:
 
 	Core::Object* m_SelectedObject = nullptr;
 	std::vector<std::unique_ptr<Core::Object>> m_Objects;
+
 	std::unordered_set<i32> m_PressedKeys;
 
 	VkDescriptorPool m_ImGuiDescriptorPool;
