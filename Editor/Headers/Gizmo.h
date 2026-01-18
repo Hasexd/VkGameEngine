@@ -3,6 +3,7 @@
 #include "Transform.h"
 #include "Mesh.h"
 #include "Application.h"
+#include "Object.h"
 
 enum class GizmoType
 {
@@ -25,30 +26,25 @@ struct GizmoPushConstants
 	glm::vec3 Color;
 };
 
-class Gizmo
+class Gizmo : public Core::Object
 {
 public:
-	Gizmo(GizmoType type, GizmoAxis axis);
-	~Gizmo();
+	Gizmo(Core::ECS& ecs, GizmoType type, GizmoAxis axis);
+	~Gizmo() override;
 
 	[[nodiscard]] GizmoType GetType() const noexcept { return m_Type; }
 	[[nodiscard]] GizmoAxis GetAxis() const noexcept { return m_Axis; }
 	[[nodiscard]] const glm::vec3& GetColor() const noexcept { return m_Color; }
 	[[nodiscard]] const glm::vec3& GetLocalOffset() const noexcept { return m_LocalOffset; }
 
-	void GetRotationMatrix(glm::mat4& modelMatrix) const noexcept;
+	[[nodiscard]] glm::mat4 GetModelMatrix() noexcept;
 
-	void SetPosition(const glm::vec3& position) { m_Transform.Position = position; }
-	void SetScale(const glm::vec3& scale) { m_Transform.Scale = scale; }
-
-	void Draw(VkCommandBuffer commandBuffer) const;
+	void SetPosition(const glm::vec3& position);
+	void SetScale(const glm::vec3& scale);
 private:
 	GizmoType m_Type;
 	GizmoAxis m_Axis;
 
-	glm::vec3 m_LocalOffset;
-	Core::Transform m_Transform;
-	Core::Mesh m_Mesh;
-
 	glm::vec3 m_Color;
+	glm::vec3 m_LocalOffset;
 };

@@ -108,9 +108,9 @@ Editor::~Editor()
 
 void Editor::InitGizmos()
 {
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(GizmoType::Translate, GizmoAxis::X));
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(GizmoType::Translate, GizmoAxis::Y));
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(GizmoType::Translate, GizmoAxis::Z));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, GizmoType::Translate, GizmoAxis::X));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, GizmoType::Translate, GizmoAxis::Y));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, GizmoType::Translate, GizmoAxis::Z));
 
 	/*
 	m_Gizmos.emplace_back(std::make_unique<Gizmo>(GizmoType::Rotate, GizmoAxis::X));
@@ -175,22 +175,27 @@ void Editor::RenderGizmos(Core::Application& app)
 	const glm::vec3& cameraPos = m_Camera.Position;
 
 	f32 distance = glm::length(cameraPos - objPosition);
-	f32 scaleFactor = distance * 0.05f;
+	f32 scaleFactor = distance * 0.075f;
 
 	GizmoPushConstants pc = {};
 
 	for (u32 i = start; i < end; i++)
 	{
-		m_Gizmos[i]->SetPosition(objPosition);
+		m_Gizmos[i]->SetPosition(objPosition + m_Gizmos[i]->GetLocalOffset() * scaleFactor);
+		m_Gizmos[i]->SetScale(glm::vec3(scaleFactor));
 
-		glm::mat4 modelMatrix = glm::mat4(1.0f);
-		modelMatrix = glm::translate(modelMatrix, objPosition);
-		modelMatrix = glm::translate(modelMatrix, m_Gizmos[i]->GetLocalOffset() * scaleFactor);
-		m_Gizmos[i]->GetRotationMatrix(modelMatrix);
-		modelMatrix = glm::scale(modelMatrix, glm::vec3(scaleFactor));
+		if (m_ActiveGizmo == m_Gizmos[i].get())
+		{
+			glm::vec3 baseColor = m_Gizmos[i]->GetColor();
+			pc.Color = baseColor + glm::vec3(0.3f);
+			pc.Color = glm::min(baseColor + glm::vec3(0.3f), glm::vec3(1.0f));
+		}
+		else
+		{
+			pc.Color = m_Gizmos[i]->GetColor();
+		}
 
-		pc.Color = m_Gizmos[i]->GetColor();
-		pc.Model = modelMatrix;
+		pc.Model = m_Gizmos[i]->GetModelMatrix();
 
 		vkCmdPushConstants(app.GetCurrentCommandBuffer(), m_GizmoShader.PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GizmoPushConstants), &pc);
 		m_Gizmos[i]->Draw(app.GetCurrentCommandBuffer());
@@ -350,34 +355,12 @@ bool Editor::OnMouseButtonPressed(Core::MouseButtonPressedEvent& event)
 
 	if (event.GetMouseButton() == GLFW_MOUSE_BUTTON_LEFT && Core::Application::Get().GetCursorState() == GLFW_CURSOR_NORMAL)
 	{
-		Core::Ray ray = {};
-		ray.Origin = m_Camera.Position;
-		ray.Origin.z += 0.01f;
-
-		glm::vec2 mousePos = Core::Application::Get().GetWindow().GetMousePos();
-		glm::vec2 framebufferSize = Core::Application::Get().GetWindow().GetFramebufferSize();
-
-		glm::vec3 ndc = glm::vec3((2.0f * mousePos.x) / framebufferSize.x - 1.0f, (2.0f * mousePos.y) / framebufferSize.y - 1.0f, 0.0f);
-		glm::vec4 rayClip = glm::vec4(ndc.x, ndc.y, 0.0f, 1.0f);
-		glm::vec4 rayEye = glm::inverse(m_Camera.GetProjectionMatrix()) * rayClip;
-		rayEye = glm::vec4(rayEye.x, rayEye.y, 1.0f, 0.0f);
-
-		glm::vec4 invRayWorld = glm::inverse(m_Camera.GetViewMatrix()) * rayEye;
-		glm::vec3 direction(invRayWorld.x, invRayWorld.y, invRayWorld.z);
-
-		ray.Direction = glm::normalize(direction);
-
-		Core::HitResult hitResult = Raycast(ray.Origin, ray.Direction, 1e10f);
-
-		if (hitResult.Hit && hitResult.HitObject != m_SelectedObject)
-		{
-			m_SelectedObject = hitResult.HitObject;
+		if (TestGizmoClick())
 			return true;
-		}
-	}
 
-	if (event.GetMouseButton() == GLFW_MOUSE_BUTTON_LEFT && Core::Application::Get().GetCursorState() == GLFW_CURSOR_NORMAL)
-	{
+		if (TestObjectClick())
+			return true;
+
 		Core::Application::Get().SetCursorState(GLFW_CURSOR_DISABLED);
 		m_LastMouseX = 0.0;
 		m_LastMouseY = 0.0;
@@ -386,6 +369,59 @@ bool Editor::OnMouseButtonPressed(Core::MouseButtonPressedEvent& event)
 	}
 
 	return false;
+}
+
+bool Editor::TestGizmoClick()
+{
+	if (!m_SelectedObject)
+		return false;
+
+	Core::Ray ray = GetMouseRay();
+	Core::HitResult hitResult = GizmoRaycast(ray.Origin, ray.Direction, 1e10f);
+	
+	if(hitResult.Hit)
+	{
+		m_ActiveGizmo = dynamic_cast<Gizmo*>(hitResult.HitObject);
+		return true;
+	}
+
+	return false;
+}
+
+bool Editor::TestObjectClick()
+{
+	Core::Ray ray = GetMouseRay();
+	Core::HitResult hitResult = Raycast(ray.Origin, ray.Direction, 1e10f);
+
+	if (hitResult.Hit && hitResult.HitObject != m_SelectedObject)
+	{
+		m_SelectedObject = hitResult.HitObject;
+		return true;
+	}
+
+	return false;
+}
+
+Core::Ray Editor::GetMouseRay()
+{
+	Core::Ray ray = {};
+	ray.Origin = m_Camera.Position;
+	ray.Origin.z += 0.01f;
+
+	glm::vec2 mousePos = Core::Application::Get().GetWindow().GetMousePos();
+	glm::vec2 framebufferSize = Core::Application::Get().GetWindow().GetFramebufferSize();
+
+	glm::vec3 ndc = glm::vec3((2.0f * mousePos.x) / framebufferSize.x - 1.0f, (2.0f * mousePos.y) / framebufferSize.y - 1.0f, 0.0f);
+	glm::vec4 rayClip = glm::vec4(ndc.x, ndc.y, 0.0f, 1.0f);
+	glm::vec4 rayEye = glm::inverse(m_Camera.GetProjectionMatrix()) * rayClip;
+	rayEye = glm::vec4(rayEye.x, rayEye.y, 1.0f, 0.0f);
+
+	glm::vec4 invRayWorld = glm::inverse(m_Camera.GetViewMatrix()) * rayEye;
+	glm::vec3 direction(invRayWorld.x, invRayWorld.y, invRayWorld.z);
+
+	ray.Direction = glm::normalize(direction);
+
+	return ray;
 }
 
 bool Editor::OnWindowResize(Core::WindowResizeEvent& event)
@@ -769,66 +805,16 @@ void Editor::DrawDebugLine(const glm::vec3& start, const glm::vec3& end, const g
 	m_DebugLines.push_back(std::make_unique<DebugLine>(start, end, color, lifetime, thickness));
 }
 
+Core::HitResult Editor::GizmoRaycast(const glm::vec3& start, const glm::vec3& direction, f32 maxDistance)
+{
+	return RaycastInternal(start, direction, maxDistance, m_Gizmos);
+}
+
 Core::HitResult Editor::Raycast(const glm::vec3& start, const glm::vec3& direction, f32 maxDistance)
 {
-	f32 closestDistance = std::numeric_limits<f32>::max();
-	Core::Object* closestObject = nullptr;
-
-	for (const auto& obj : m_Objects)
-	{
-		if (!obj->HasComponent<Core::Mesh>())
-			continue;
-
-		auto transform = obj->GetComponent<Core::Transform>();
-
-		glm::mat4 invTransform = glm::inverse(transform->GetModelMatrix());
-		glm::vec3 localOrigin = glm::vec3(invTransform * glm::vec4(start, 1.0f));
-		glm::vec3 localDirection = glm::normalize(glm::vec3(invTransform * glm::vec4(direction, 0.0f)));
-
-		auto mesh = obj->GetComponent<Core::Mesh>();
-		const auto& vertices = mesh->GetVertices();
-		const auto& indices = mesh->GetIndices();
-
-		for (usize i = 0; i < indices.size(); i += 3)
-		{
-			if (indices[i] >= vertices.size() ||
-				indices[i + 1] >= vertices.size() ||
-				indices[i + 2] >= vertices.size())
-			{
-				continue;
-			}
-
-			glm::vec3 v0 = vertices[indices[i]].Position;
-			glm::vec3 v1 = vertices[indices[i + 1]].Position;
-			glm::vec3 v2 = vertices[indices[i + 2]].Position;
-
-			Core::Ray localRay = {};
-			localRay.Origin = localOrigin;
-			localRay.Direction = localDirection;
-
-			f32 distance;
-			if (RayTriangleIntersection(localRay, v0, v1, v2, distance))
-			{
-				glm::vec3 localIntersection = localOrigin + localDirection * distance;
-				glm::vec3 worldIntersection = glm::vec3(transform->GetModelMatrix() * glm::vec4(localIntersection, 1.0f));
-				f32 worldDistance = glm::length(worldIntersection - start);
-
-				if (worldDistance < closestDistance && worldDistance <= maxDistance)
-				{
-					closestDistance = worldDistance;
-					closestObject = obj.get();
-				}
-			}
-		}
-	}
-
-	Core::HitResult result = {};
-	result.HitObject = closestObject;
-	result.HitDistance = closestDistance;
-	result.Hit = (closestObject != nullptr);
-
-	return result;
+	return RaycastInternal(start, direction, maxDistance, m_Objects);
 }
+
 bool Editor::RayTriangleIntersection(const Core::Ray& ray, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2, f32& outDistance)
 {
 	// https://en.wikipedia.org/wiki/Möller–Trumbore_intersection_algorithm
