@@ -311,20 +311,24 @@ bool Editor::OnKeyPressed(Core::KeyPressedEvent& event)
 	m_PressedKeys.insert(event.GetKeyCode());
 
 	if (event.GetKeyCode() == GLFW_KEY_ESCAPE)
+	{
 		Core::Application::Get().SetCursorState(GLFW_CURSOR_NORMAL);
+		return true;
+	}
 
 	if(event.GetKeyCode() == GLFW_KEY_F1 && !event.IsRepeat())
 	{
 		m_WireframeMode = !m_WireframeMode;
 		Core::Application::Get().SetWireframeMode(m_WireframeMode);
+
+		return true;
 	}
 
-	return true;
+	return false;
 }
 
 bool Editor::OnKeyReleased(Core::KeyReleasedEvent& event)
 {
-
 	m_PressedKeys.erase(event.GetKeyCode());
 	return true;
 }
@@ -335,28 +339,23 @@ bool Editor::OnMouseMoved(Core::MouseMovedEvent& event)
 	{
 		if (m_ActiveGizmo->GetType() == GizmoType::Translate)
 		{
-			glm::vec3& position = m_SelectedObject->GetComponent<Core::Transform>()->Position;
+			glm::vec3 point = m_SelectedObject->GetComponent<Core::Transform>()->Position;
 			GizmoAxis axis = m_ActiveGizmo->GetAxis();
-
-			f32 mouseDeltaX = event.GetX() - m_LastMouseX;
-			f32 mouseDeltaY = event.GetY() - m_LastMouseY;
-
-			const glm::vec3& cameraPos = m_Camera.Position;
-			f32 distance = glm::length(cameraPos - position);
-			f32 sensitivity = 0.001f * distance;
 
 			if (axis == GizmoAxis::X)
 			{
-				position.x += mouseDeltaX * sensitivity;
+				AxisTranslationDragger(glm::vec3(1.0f, 0.0f, 0.0f), point);
+
 			}
 			else if (axis == GizmoAxis::Y)
 			{
-				position.y -= mouseDeltaY * sensitivity;
+				AxisTranslationDragger(glm::vec3(0.0f, 1.0f, 0.0f), point);
 			}
 			else if (axis == GizmoAxis::Z)
 			{
-				position.z += mouseDeltaX * sensitivity;
+				AxisTranslationDragger(glm::vec3(0.0f, 0.0f, 1.0f), point);
 			}
+			m_SelectedObject->GetComponent<Core::Transform>()->Position = point;
 		}
 
 		m_LastMouseX = event.GetX();
@@ -382,6 +381,35 @@ bool Editor::OnMouseMoved(Core::MouseMovedEvent& event)
 
 	return true;
 }
+
+void Editor::PlaneTranslationDragger(const glm::vec3& planeNormal, glm::vec3& point)
+{
+	const glm::vec3 planePoint = m_SelectedObject->GetComponent<Core::Transform>()->Position;
+	const Core::Ray ray = GetMouseRay();
+	const float denom = glm::dot(planeNormal, ray.Direction);
+
+	if (std::abs(denom) == 0.0f)
+		return;
+
+	const float t = glm::dot(planePoint - ray.Origin, planeNormal) / denom;
+	if (t < 0)
+		return;
+
+	point = ray.Origin + ray.Direction * t;
+}
+
+void Editor::AxisTranslationDragger(const glm::vec3& axis, glm::vec3& point)
+{
+	const glm::vec3 planeTangent = glm::cross(axis, point - m_Camera.Position);
+	const glm::vec3 planeNormal = glm::cross(axis, planeTangent);
+	PlaneTranslationDragger(planeNormal, point);
+
+
+	glm::vec3& objPosition = m_SelectedObject->GetComponent<Core::Transform>()->Position;
+	point = objPosition +
+		axis * glm::dot(point - objPosition, axis);
+}
+
 
 bool Editor::OnMouseButtonPressed(Core::MouseButtonPressedEvent& event)
 {

@@ -72,11 +72,15 @@ private:
 	template<std::derived_from<Core::Object> T>
 	Core::HitResult RaycastInternal(const glm::vec3& start, const glm::vec3& direction, f32 maxDistance, const std::vector<std::unique_ptr<T>>& objects);
 
-
 	bool TestGizmoClick();
 	bool TestObjectClick();
 
 	Core::Ray GetMouseRay();
+
+
+	// Gizmo manipulation methods taken from TinyGizmos implementation (https://github.com/ddiakopoulos/tinygizmo)
+	void PlaneTranslationDragger(const glm::vec3& planeNormal, glm::vec3& point);
+	void AxisTranslationDragger(const glm::vec3& axis, glm::vec3& point);
 private:
 	Core::ECS m_ECS;
 	Core::Camera m_Camera;
