@@ -338,11 +338,12 @@ bool Editor::OnMouseMoved(Core::MouseMovedEvent& event)
 			glm::vec3& position = m_SelectedObject->GetComponent<Core::Transform>()->Position;
 			GizmoAxis axis = m_ActiveGizmo->GetAxis();
 
-			f32 deltaTime = Core::Application::GetDeltaTime();
 			f32 mouseDeltaX = event.GetX() - m_LastMouseX;
 			f32 mouseDeltaY = event.GetY() - m_LastMouseY;
 
-			constexpr f32 sensitivity = 0.0001f;
+			const glm::vec3& cameraPos = m_Camera.Position;
+			f32 distance = glm::length(cameraPos - position);
+			f32 sensitivity = 0.001f * distance;
 
 			if (axis == GizmoAxis::X)
 			{
@@ -357,6 +358,10 @@ bool Editor::OnMouseMoved(Core::MouseMovedEvent& event)
 				position.z += mouseDeltaX * sensitivity;
 			}
 		}
+
+		m_LastMouseX = event.GetX();
+		m_LastMouseY = event.GetY();
+		return true;
 	}
 
 	if (Core::Application::Get().GetCursorState() == GLFW_CURSOR_NORMAL)
@@ -403,11 +408,14 @@ bool Editor::OnMouseButtonPressed(Core::MouseButtonPressedEvent& event)
 
 bool Editor::OnMouseButtonReleased(Core::MouseButtonReleasedEvent& event)
 {
-	if (event.GetMouseButton() == GLFW_MOUSE_BUTTON_LEFT)
+	if (event.GetMouseButton() == GLFW_MOUSE_BUTTON_LEFT && m_ActiveGizmo)
 	{
 		m_ActiveGizmo = nullptr;
+		Core::Application::Get().SetCursorState(GLFW_CURSOR_NORMAL);
 		return true;
 	}
+
+	return false;
 }
 
 bool Editor::TestGizmoClick()
@@ -420,6 +428,7 @@ bool Editor::TestGizmoClick()
 	
 	if(hitResult.Hit)
 	{
+		Core::Application::Get().SetCursorState(GLFW_CURSOR_DISABLED);
 		m_ActiveGizmo = dynamic_cast<Gizmo*>(hitResult.HitObject);
 		return true;
 	}
