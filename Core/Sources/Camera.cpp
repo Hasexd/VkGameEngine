@@ -15,8 +15,8 @@ namespace Core
 	glm::mat4 Camera::GetProjectionMatrix() const
 	{
 		glm::mat4 proj = glm::mat4(0.0f);
-		proj[0][0] = (1 / AspectRatio) / glm::tan(Fov / 2);
-		proj[1][1] = -(1 / glm::tan(Fov / 2));
+		proj[0][0] = (1 / AspectRatio) / glm::tan(glm::radians(Fov) / 2);
+		proj[1][1] = -(1 / glm::tan(glm::radians(Fov) / 2));
 		proj[2][2] = FarPlane / (FarPlane - NearPlane);
 		proj[2][3] = 1.0f;
 		proj[3][2] = -(FarPlane * NearPlane) / (FarPlane - NearPlane);

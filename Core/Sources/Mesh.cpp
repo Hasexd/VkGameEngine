@@ -28,17 +28,13 @@ namespace Core
 		m_Vertices.clear();
 		m_Indices.clear();
 	}
-
-	void Mesh::Bind(VkCommandBuffer commandBuffer) const
+	void Mesh::Draw(VkCommandBuffer commandBuffer) const
 	{
 		VkDeviceSize offset = 0;
 
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_VertexBuffer.Buffer, &offset);
 		vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer.Buffer, 0, VK_INDEX_TYPE_UINT32);
-	}
 
-	void Mesh::Draw(VkCommandBuffer commandBuffer) const
-	{
 		vkCmdDrawIndexed(commandBuffer, m_Indices.size(), 1, 0, 0, 0);
 	}
 }

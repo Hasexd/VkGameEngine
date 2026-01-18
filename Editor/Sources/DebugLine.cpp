@@ -18,13 +18,13 @@ DebugLine::~DebugLine()
 	}
 }
 
-void DebugLine::Draw() const
+void DebugLine::Draw(VkCommandBuffer commandBuffer) const
 {
 	VkDeviceSize offset = 0;
-	vkCmdBindVertexBuffers(Core::Application::Get().GetCurrentCommandBuffer(), 0, 1, &m_VertexBuffer.Buffer, &offset);
-	vkCmdBindIndexBuffer(Core::Application::Get().GetCurrentCommandBuffer(), s_IndexBuffer.Buffer, 0, VK_INDEX_TYPE_UINT32);
+	vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_VertexBuffer.Buffer, &offset);
+	vkCmdBindIndexBuffer(commandBuffer, s_IndexBuffer.Buffer, 0, VK_INDEX_TYPE_UINT32);
 
-	vkCmdDrawIndexed(Core::Application::Get().GetCurrentCommandBuffer(), 2, 1, 0, 0, 0);
+	vkCmdDrawIndexed(commandBuffer, 2, 1, 0, 0, 0);
 }
 
 void DebugLine::CreateBuffers(const glm::vec3& start, const glm::vec3& end)

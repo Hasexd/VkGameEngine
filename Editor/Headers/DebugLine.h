@@ -16,7 +16,7 @@ class DebugLine
 public:
 	DebugLine(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color, f32 lifetime, f32 thickness);
 	~DebugLine();
-	void Draw() const;
+	void Draw(VkCommandBuffer commandBuffer) const;
 
 	DebugLine(const DebugLine&) = delete;
 	DebugLine& operator=(const DebugLine&) = delete;

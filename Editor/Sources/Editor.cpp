@@ -20,6 +20,7 @@ Editor::Editor()
 	app.SetBackgroundColor({0.0f, 0.0f, 0.0f, 1.0f});
 
 	InitImGui();
+	InitGizmos();
 
 	app.SetPreFrameRenderFunction([this]() -> void 
 		{
@@ -30,6 +31,7 @@ Editor::Editor()
 
 	CreateOutlinePipeline();
 	CreateDebugLinePipeline();
+	CreateGizmoPipeline();
 
 	auto obj = AddObject<Cube>("Red cube");
 	obj->GetComponent<Core::Transform>()->Position = { 0.0f, 0.0f, 5.0f };
@@ -66,6 +68,7 @@ Editor::Editor()
 
 Editor::~Editor()
 {
+	auto& app = Core::Application::Get();
 	for (auto& obj : m_Objects)
 	{
 		if(obj->HasComponent<Core::Mesh>())
@@ -73,12 +76,12 @@ Editor::~Editor()
 			auto mesh = obj->GetComponent<Core::Mesh>();
 
 			vmaDestroyBuffer(
-				Core::Application::Get().GetVmaAllocator(),
+				app.GetVmaAllocator(),
 				mesh->GetVertexBuffer().Buffer,
 				mesh->GetVertexBuffer().Allocation);
 
 			vmaDestroyBuffer(
-				Core::Application::Get().GetVmaAllocator(),
+				app.GetVmaAllocator(),
 				mesh->GetIndexBuffer().Buffer,
 				mesh->GetIndexBuffer().Allocation);
 		}
@@ -93,12 +96,31 @@ Editor::~Editor()
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
 
-	vkDestroyDescriptorPool(Core::Application::Get().GetVulkanDevice(), m_ImGuiDescriptorPool, nullptr);
-	m_OutlineShader.Destroy(Core::Application::Get().GetVulkanDevice());
-	m_OutlineFillShader.Destroy(Core::Application::Get().GetVulkanDevice());
-	m_DebugLineShader.Destroy(Core::Application::Get().GetVulkanDevice());
+	vkDestroyDescriptorPool(app.GetVulkanDevice(), m_ImGuiDescriptorPool, nullptr);
+	m_OutlineShader.Destroy(app.GetVulkanDevice());
+	m_OutlineFillShader.Destroy(app.GetVulkanDevice());
+	m_DebugLineShader.Destroy(app.GetVulkanDevice());
+	m_GizmoShader.Destroy(app.GetVulkanDevice());
 
 	m_DebugLines.clear();
+	m_Gizmos.clear();
+}
+
+void Editor::InitGizmos()
+{
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(GizmoType::Translate, GizmoAxis::X));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(GizmoType::Translate, GizmoAxis::Y));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(GizmoType::Translate, GizmoAxis::Z));
+
+	/*
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(GizmoType::Rotate, GizmoAxis::X));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(GizmoType::Rotate, GizmoAxis::Y));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(GizmoType::Rotate, GizmoAxis::Z));
+
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(GizmoType::Scale, GizmoAxis::X));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(GizmoType::Scale, GizmoAxis::Y));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(GizmoType::Scale, GizmoAxis::Z));*/
+
 }
 
 void Editor::OnEvent(Core::Event& event)
@@ -120,6 +142,7 @@ void Editor::OnRender()
 
 	RenderObjects(app);
 	RenderSelectedObjectOutline(app);
+	RenderGizmos(app);
 	RenderDebugLines(app);
 }
 
@@ -132,6 +155,45 @@ void Editor::RenderObjects(Core::Application& app)
 			PushConstants(obj.get());
 			obj->Draw(Core::Application::Get().GetCurrentCommandBuffer());
 		}
+	}
+}
+
+void Editor::RenderGizmos(Core::Application& app)
+{
+	if (!m_SelectedObject)
+		return;
+
+	vkCmdBindPipeline(app.GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_GizmoShader.Pipeline);
+	vkCmdBindDescriptorSets(app.GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
+		m_GizmoShader.PipelineLayout, 0, 1, &m_GizmoShader.DescriptorSet, 0, nullptr);
+
+	u32 start = m_ActiveGizmoType == GizmoType::Translate ? 0 :
+		m_ActiveGizmoType == GizmoType::Rotate ? 3 : 6;
+	u32 end = start + 3;
+
+	const glm::vec3& objPosition = m_SelectedObject->GetComponent<Core::Transform>()->Position;
+	const glm::vec3& cameraPos = m_Camera.Position;
+
+	f32 distance = glm::length(cameraPos - objPosition);
+	f32 scaleFactor = distance * 0.05f;
+
+	GizmoPushConstants pc = {};
+
+	for (u32 i = start; i < end; i++)
+	{
+		m_Gizmos[i]->SetPosition(objPosition);
+
+		glm::mat4 modelMatrix = glm::mat4(1.0f);
+		modelMatrix = glm::translate(modelMatrix, objPosition);
+		modelMatrix = glm::translate(modelMatrix, m_Gizmos[i]->GetLocalOffset() * scaleFactor);
+		m_Gizmos[i]->GetRotationMatrix(modelMatrix);
+		modelMatrix = glm::scale(modelMatrix, glm::vec3(scaleFactor));
+
+		pc.Color = m_Gizmos[i]->GetColor();
+		pc.Model = modelMatrix;
+
+		vkCmdPushConstants(app.GetCurrentCommandBuffer(), m_GizmoShader.PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GizmoPushConstants), &pc);
+		m_Gizmos[i]->Draw(app.GetCurrentCommandBuffer());
 	}
 }
 
@@ -169,7 +231,7 @@ void Editor::RenderDebugLines(Core::Application& app)
 
 		vkCmdPushConstants(app.GetCurrentCommandBuffer(), m_DebugLineShader.PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DLPushConstants), &dlPc);
 		vkCmdSetLineWidth(app.GetCurrentCommandBuffer(), line->Thickness);
-		line->Draw();
+		line->Draw(app.GetCurrentCommandBuffer());
 	}
 }
 
@@ -328,17 +390,9 @@ bool Editor::OnMouseButtonPressed(Core::MouseButtonPressedEvent& event)
 
 bool Editor::OnWindowResize(Core::WindowResizeEvent& event)
 {
+	auto& app = Core::Application::Get();
 	m_Camera.AspectRatio = static_cast<f32>(event.GetWidth()) / static_cast<f32>(event.GetHeight());
 	m_PressedKeys.clear();
-
-	vkDeviceWaitIdle(Core::Application::Get().GetVulkanDevice());
-
-	m_OutlineShader.Destroy(Core::Application::Get().GetVulkanDevice());
-	m_OutlineFillShader.Destroy(Core::Application::Get().GetVulkanDevice());
-	m_DebugLineShader.Destroy(Core::Application::Get().GetVulkanDevice());
-
-	CreateOutlinePipeline();
-	CreateDebugLinePipeline();
 
 	return true;
 }
@@ -534,6 +588,74 @@ void Editor::CreateDebugLinePipeline()
 	app.UpdateDescriptorSets(m_DebugLineShader);
 }
 
+void Editor::CreateGizmoPipeline()
+{
+	auto& app = Core::Application::Get();
+	VkExtent2D extent = app.GetSwapchain().extent;
+
+	VkViewport viewport = {};
+	viewport.x = 0.0f;
+	viewport.y = 0.0f;
+	viewport.width = static_cast<f32>(extent.width);
+	viewport.height = static_cast<f32>(extent.height);
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+
+	VkRect2D scissor = {};
+	scissor.offset = { 0, 0 };
+	scissor.extent = { extent.width, extent.height };
+
+	VkPushConstantRange gizmoPushConstants = {};
+	gizmoPushConstants.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	gizmoPushConstants.offset = 0;
+	gizmoPushConstants.size = sizeof(GizmoPushConstants);
+
+	VkVertexInputBindingDescription bindingDescription = {};
+	bindingDescription.binding = 0;
+	bindingDescription.stride = sizeof(Core::Vertex);
+	bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+	std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
+	attributeDescriptions.resize(1);
+
+	attributeDescriptions[0].binding = 0;
+	attributeDescriptions[0].location = 0;
+	attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+	attributeDescriptions[0].offset = 0;
+
+	VkPipelineDepthStencilStateCreateInfo depthStencil = {};
+	depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	depthStencil.depthTestEnable = VK_FALSE;
+	depthStencil.depthWriteEnable = VK_FALSE;
+	depthStencil.depthBoundsTestEnable = VK_FALSE;
+	depthStencil.stencilTestEnable = VK_FALSE;
+
+	std::vector<VkDynamicState> dynamicStates =
+	{
+		VK_DYNAMIC_STATE_VIEWPORT,
+		VK_DYNAMIC_STATE_SCISSOR,
+	};
+
+	std::vector<Core::DescriptorBinding> bindings =
+	{
+		Core::DescriptorBinding(app.GetVPBuffer(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
+	};
+
+	VkPipelineMultisampleStateCreateInfo multisampling = {};
+	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisampling.sampleShadingEnable = VK_FALSE;
+	multisampling.rasterizationSamples = app.GetMSAASamples();
+
+	auto vert = m_ShaderDirectory / "Compiled" / "gizmo.vert.spv";
+	auto frag = m_ShaderDirectory / "Compiled" / "gizmo.frag.spv";
+
+	m_GizmoShader = app.CreateShader(app.GetRenderTextureRenderPass(), bindings, { gizmoPushConstants },
+		&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, dynamicStates, &multisampling,
+		VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag);
+
+	app.UpdateDescriptorSets(m_GizmoShader);
+}
+
 void Editor::InitImGui()
 {
 	VkDescriptorPoolSize poolSizes[] =
@@ -658,8 +780,8 @@ Core::HitResult Editor::Raycast(const glm::vec3& start, const glm::vec3& directi
 			continue;
 
 		auto transform = obj->GetComponent<Core::Transform>();
-		glm::mat4 invTransform = glm::inverse(transform->GetModelMatrix());
 
+		glm::mat4 invTransform = glm::inverse(transform->GetModelMatrix());
 		glm::vec3 localOrigin = glm::vec3(invTransform * glm::vec4(start, 1.0f));
 		glm::vec3 localDirection = glm::normalize(glm::vec3(invTransform * glm::vec4(direction, 0.0f)));
 

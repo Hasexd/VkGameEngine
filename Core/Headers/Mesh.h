@@ -26,7 +26,6 @@ namespace Core
 
 		void Destroy(VmaAllocator allocator);
 
-		void Bind(VkCommandBuffer commandBuffer) const;
 		void Draw(VkCommandBuffer commandBuffer) const;
 
 		[[nodiscard]] const std::vector<Vertex>& GetVertices() const noexcept { return m_Vertices; }

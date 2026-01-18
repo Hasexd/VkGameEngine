@@ -427,7 +427,6 @@ namespace Core
 
 	void Renderer::CreateBlitPipeline()
 	{
-
 		VkViewport viewport = {};
 		viewport.x = 0.0f;
 		viewport.y = 0.0f;
@@ -967,10 +966,6 @@ namespace Core
 
 		vkDestroyCommandPool(m_CoreData.Device, m_RenderData.CommandPool, nullptr);
 
-		m_GraphicsShader.Destroy(m_CoreData.Device);
-		m_WireframeShader.Destroy(m_CoreData.Device);
-		m_BlitShader.Destroy(m_CoreData.Device);
-
 		vkDestroyRenderPass(m_CoreData.Device, m_RenderData.RenderPass, nullptr);
 		vkDestroyRenderPass(m_CoreData.Device, m_RenderTextureRenderPass, nullptr);
 
@@ -982,11 +977,18 @@ namespace Core
 		CreateGraphicsRP();
 		CreateSwapchainRP();
 		CreateRenderTextures();
-		CreateGP();
-		CreateBlitPipeline();
 		CreateFramebuffers();
 		CreateCommandPool();
 		CreateCommandBuffers();
+
+		// update shader bindings
+
+		m_BlitShader.Bindings = 
+		{
+			DescriptorBinding(m_RenderTextureResolved, m_RenderTextureSampler,
+				VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+		};
+		UpdateDescriptorSets(m_BlitShader);
 
 		TransitionImageLayout(m_RenderTexture.Image, m_RenderTexture.Format,
 			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);

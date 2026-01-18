@@ -13,8 +13,6 @@ namespace Core
 	void Object::Draw(VkCommandBuffer cmd)
 	{
 		Mesh* mesh = GetComponent<Mesh>();
-
-		mesh->Bind(cmd);
 		mesh->Draw(cmd);
 	}
 }

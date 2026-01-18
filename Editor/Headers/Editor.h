@@ -23,6 +23,7 @@
 #include "DebugLine.h"
 #include "Ray.h"
 #include "Plane.h"
+#include "Gizmo.h"
 
 class Editor : public Core::Layer
 {
@@ -47,17 +48,20 @@ public:
 
 private:
 	void InitImGui();
+	void InitGizmos();
 	void RenderImGui();
 
 	void UpdateVPData();
 	void PushConstants(Core::Object* obj);
 
 	void RenderObjects(Core::Application& app);
+	void RenderGizmos(Core::Application& app);
 	void RenderSelectedObjectOutline(Core::Application& app);
 	void RenderDebugLines(Core::Application& app);
 	
 	void CreateOutlinePipeline();
 	void CreateDebugLinePipeline();
+	void CreateGizmoPipeline();
 
 	bool RayTriangleIntersection(const Core::Ray& ray, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2, f32& outDistance);
 
@@ -72,6 +76,9 @@ private:
 	Core::Object* m_SelectedObject = nullptr;
 	std::vector<std::unique_ptr<Core::Object>> m_Objects;
 
+	std::vector<std::unique_ptr<Gizmo>> m_Gizmos;
+	GizmoType m_ActiveGizmoType = GizmoType::Translate;
+
 	std::unordered_set<i32> m_PressedKeys;
 
 	VkDescriptorPool m_ImGuiDescriptorPool;
@@ -81,6 +88,7 @@ private:
 	Core::Shader m_OutlineShader;
 	Core::Shader m_OutlineFillShader;
 	Core::Shader m_DebugLineShader;
+	Core::Shader m_GizmoShader;
 
 	static inline std::vector<std::unique_ptr<DebugLine>> m_DebugLines;
 
