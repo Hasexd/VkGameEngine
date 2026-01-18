@@ -129,6 +129,7 @@ void Editor::OnEvent(Core::Event& event)
 
 	dispatcher.Dispatch<Core::MouseMovedEvent>([this](Core::MouseMovedEvent& e) { return OnMouseMoved(e); });
 	dispatcher.Dispatch<Core::MouseButtonPressedEvent>([this](Core::MouseButtonPressedEvent& e) { return OnMouseButtonPressed(e); });
+	dispatcher.Dispatch<Core::MouseButtonReleasedEvent>([this](Core::MouseButtonReleasedEvent& e) { return OnMouseButtonReleased(e); });
 	dispatcher.Dispatch<Core::KeyPressedEvent>([this](Core::KeyPressedEvent& e) { return OnKeyPressed(e); });
 	dispatcher.Dispatch<Core::KeyReleasedEvent>([this](Core::KeyReleasedEvent& e) { return OnKeyReleased(e); });
 	dispatcher.Dispatch<Core::WindowResizeEvent>([this](Core::WindowResizeEvent& e) { return OnWindowResize(e); });
@@ -323,12 +324,41 @@ bool Editor::OnKeyPressed(Core::KeyPressedEvent& event)
 
 bool Editor::OnKeyReleased(Core::KeyReleasedEvent& event)
 {
+
 	m_PressedKeys.erase(event.GetKeyCode());
 	return true;
 }
 
 bool Editor::OnMouseMoved(Core::MouseMovedEvent& event)
 {
+	if (m_ActiveGizmo)
+	{
+		if (m_ActiveGizmo->GetType() == GizmoType::Translate)
+		{
+			glm::vec3& position = m_SelectedObject->GetComponent<Core::Transform>()->Position;
+			GizmoAxis axis = m_ActiveGizmo->GetAxis();
+
+			f32 deltaTime = Core::Application::GetDeltaTime();
+			f32 mouseDeltaX = event.GetX() - m_LastMouseX;
+			f32 mouseDeltaY = event.GetY() - m_LastMouseY;
+
+			constexpr f32 sensitivity = 0.0001f;
+
+			if (axis == GizmoAxis::X)
+			{
+				position.x += mouseDeltaX * sensitivity;
+			}
+			else if (axis == GizmoAxis::Y)
+			{
+				position.y -= mouseDeltaY * sensitivity;
+			}
+			else if (axis == GizmoAxis::Z)
+			{
+				position.z += mouseDeltaX * sensitivity;
+			}
+		}
+	}
+
 	if (Core::Application::Get().GetCursorState() == GLFW_CURSOR_NORMAL)
 		return false;
 
@@ -369,6 +399,15 @@ bool Editor::OnMouseButtonPressed(Core::MouseButtonPressedEvent& event)
 	}
 
 	return false;
+}
+
+bool Editor::OnMouseButtonReleased(Core::MouseButtonReleasedEvent& event)
+{
+	if (event.GetMouseButton() == GLFW_MOUSE_BUTTON_LEFT)
+	{
+		m_ActiveGizmo = nullptr;
+		return true;
+	}
 }
 
 bool Editor::TestGizmoClick()

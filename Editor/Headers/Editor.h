@@ -36,6 +36,7 @@ public:
 	virtual void OnUpdate(f32 deltaTime) override;
 
 	bool OnMouseButtonPressed(Core::MouseButtonPressedEvent& event);
+	bool OnMouseButtonReleased(Core::MouseButtonReleasedEvent& event);
 	bool OnMouseMoved(Core::MouseMovedEvent& event);
 	bool OnKeyPressed(Core::KeyPressedEvent& event);
 	bool OnKeyReleased(Core::KeyReleasedEvent& event);
