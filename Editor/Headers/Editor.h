@@ -61,7 +61,7 @@ private:
 
 	bool RayTriangleIntersection(const Core::Ray& ray, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2, f32& outDistance);
 
-	Core::HitResult Raycast(const glm::vec3& start, const glm::vec3& end);
+	Core::HitResult Raycast(const glm::vec3& start, const glm::vec3& direction, f32 maxDistance);
 private:
 	Core::ECS m_ECS;
 	Core::Camera m_Camera;

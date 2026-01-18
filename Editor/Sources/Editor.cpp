@@ -305,7 +305,7 @@ bool Editor::OnMouseButtonPressed(Core::MouseButtonPressedEvent& event)
 
 		ray.Direction = glm::normalize(direction);
 
-		Core::HitResult hitResult = Raycast(ray.Origin, ray.Origin + ray.Direction * 1e10f);
+		Core::HitResult hitResult = Raycast(ray.Origin, ray.Direction, 1e10f);
 
 		if (hitResult.Hit && hitResult.HitObject != m_SelectedObject)
 		{
@@ -647,24 +647,8 @@ void Editor::DrawDebugLine(const glm::vec3& start, const glm::vec3& end, const g
 	m_DebugLines.push_back(std::make_unique<DebugLine>(start, end, color, lifetime, thickness));
 }
 
-Core::HitResult Editor::Raycast(const glm::vec3& start, const glm::vec3& end)
+Core::HitResult Editor::Raycast(const glm::vec3& start, const glm::vec3& direction, f32 maxDistance)
 {
-	glm::vec3 rayDirection = end - start;
-	f32 rayLength = glm::length(rayDirection);
-
-	constexpr f32 MAX_RAY_LENGTH = 1e6f;
-	bool isInfiniteRay = std::isinf(rayLength) || rayLength > MAX_RAY_LENGTH;
-
-	if (isInfiniteRay)
-	{
-		rayDirection = glm::normalize(rayDirection);
-		rayLength = std::numeric_limits<f32>::max();
-	}
-	else
-	{
-		rayDirection = glm::normalize(rayDirection);
-	}
-
 	f32 closestDistance = std::numeric_limits<f32>::max();
 	Core::Object* closestObject = nullptr;
 
@@ -677,7 +661,7 @@ Core::HitResult Editor::Raycast(const glm::vec3& start, const glm::vec3& end)
 		glm::mat4 invTransform = glm::inverse(transform->GetModelMatrix());
 
 		glm::vec3 localOrigin = glm::vec3(invTransform * glm::vec4(start, 1.0f));
-		glm::vec3 localDirection = glm::normalize(glm::vec3(invTransform * glm::vec4(rayDirection, 0.0f)));
+		glm::vec3 localDirection = glm::normalize(glm::vec3(invTransform * glm::vec4(direction, 0.0f)));
 
 		auto mesh = obj->GetComponent<Core::Mesh>();
 		const auto& vertices = mesh->GetVertices();
@@ -707,7 +691,7 @@ Core::HitResult Editor::Raycast(const glm::vec3& start, const glm::vec3& end)
 				glm::vec3 worldIntersection = glm::vec3(transform->GetModelMatrix() * glm::vec4(localIntersection, 1.0f));
 				f32 worldDistance = glm::length(worldIntersection - start);
 
-				if (worldDistance < closestDistance && worldDistance <= rayLength)
+				if (worldDistance < closestDistance && worldDistance <= maxDistance)
 				{
 					closestDistance = worldDistance;
 					closestObject = obj.get();
