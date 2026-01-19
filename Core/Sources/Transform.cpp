@@ -14,4 +14,9 @@ namespace Core
 		
 		return model;
 	}
+
+	glm::quat Transform::GetRotationQuat() const
+	{
+		return glm::quat(Rotation);
+	}
 }

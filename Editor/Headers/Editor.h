@@ -77,10 +77,11 @@ private:
 
 	Core::Ray GetMouseRay();
 
-
 	// Gizmo manipulation methods taken from TinyGizmos implementation (https://github.com/ddiakopoulos/tinygizmo)
 	void PlaneTranslationDragger(const glm::vec3& planeNormal, glm::vec3& point);
 	void AxisTranslationDragger(const glm::vec3& axis, glm::vec3& point);
+	void AxisRotationDragger(const glm::vec3& axis);
+	void AxisScaleDragger(const glm::vec3& axis);
 private:
 	Core::ECS m_ECS;
 	Core::Camera m_Camera;
@@ -95,6 +96,7 @@ private:
 	std::vector<std::unique_ptr<Gizmo>> m_Gizmos;
 	GizmoType m_ActiveGizmoType = GizmoType::Translate;
 	Gizmo* m_ActiveGizmo = nullptr;
+	glm::vec3 m_ClickOffset; // offset of the mouse click from the selected object position in world space
 
 	std::unordered_set<i32> m_PressedKeys;
 

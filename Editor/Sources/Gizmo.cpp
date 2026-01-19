@@ -14,29 +14,87 @@ Gizmo::Gizmo(Core::ECS& ecs, GizmoType type, GizmoAxis axis)
 	auto transform = GetComponent<Core::Transform>();
 
 	if (type == GizmoType::Translate)
+	{
 		*mesh = app.CreateMeshFromOBJ("TranslateGizmo.obj");
-	else if (type == GizmoType::Rotate)
-		*mesh = app.CreateMeshFromOBJ("RotateGizmo.obj");
-	else if (type == GizmoType::Scale)
-		*mesh = app.CreateMeshFromOBJ("ScaleGizmo.obj");
+		SetupTranslationGizmo(transform);
 
-	if (axis == GizmoAxis::X)
+	}
+	else if (type == GizmoType::Rotate)
+	{
+		*mesh = app.CreateMeshFromOBJ("RotateGizmo.obj");
+		SetupRotationGizmo(transform);
+	}
+	else if (type == GizmoType::Scale)
+	{
+		*mesh = app.CreateMeshFromOBJ("ScaleGizmo.obj");
+		SetupScaleGizmo(transform);
+	}
+
+	if (m_Axis == GizmoAxis::X)
+	{
+		m_Color = glm::vec3(1.0f, 0.0f, 0.0f);
+	}
+	else if (m_Axis == GizmoAxis::Y)
+	{
+		m_Color = glm::vec3(0.0f, 1.0f, 0.0f);
+	}
+	else if (m_Axis == GizmoAxis::Z)
+	{
+		m_Color = glm::vec3(0.0f, 0.0f, 1.0f);
+	}
+}
+
+void Gizmo::SetupTranslationGizmo(Core::Transform* transform)
+{
+	if (m_Axis == GizmoAxis::X)
 	{
 		transform->Rotation = glm::radians(glm::vec3(0.0f, 0.0f, -90.0f));
-		m_Color = glm::vec3(1.0f, 0.0f, 0.0f);
 		m_LocalOffset = glm::vec3(1.0f, 0.0f, 0.0f);
 	}
-	else if (axis == GizmoAxis::Y)
+	else if (m_Axis == GizmoAxis::Y)
 	{
 		transform->Rotation = glm::radians(glm::vec3(0.0f, 0.0f, 0.0f));
-		m_Color = glm::vec3(0.0f, 1.0f, 0.0f);
 		m_LocalOffset = glm::vec3(0.0f, 1.0f, 0.0f);
 	}
-	else if (axis == GizmoAxis::Z)
+	else if (m_Axis == GizmoAxis::Z)
 	{
 		transform->Rotation = glm::radians(glm::vec3(90.0f, 0.0f, 0.0f));
-		m_Color = glm::vec3(0.0f, 0.0f, 1.0f);
 		m_LocalOffset = glm::vec3(0.0f, 0.0f, 1.0f);
+	}
+}
+
+void Gizmo::SetupRotationGizmo(Core::Transform* transform)
+{
+	if (m_Axis == GizmoAxis::X)
+	{
+		transform->Rotation = glm::radians(glm::vec3(45.0f, 0.0f, 90.0f));
+	}
+	else if (m_Axis == GizmoAxis::Y)
+	{
+		transform->Rotation = glm::radians(glm::vec3(0.0f, -45.0f, 0.0f));
+	}
+	else if (m_Axis == GizmoAxis::Z)
+	{
+		transform->Rotation = glm::radians(glm::vec3(45.0f, 270.0f, 90.0f));
+	}
+}
+
+void Gizmo::SetupScaleGizmo(Core::Transform* transform)
+{
+	if (m_Axis == GizmoAxis::X)
+	{
+		transform->Rotation = glm::radians(glm::vec3(0.0f, 0.0f, -90.0f));
+		m_LocalOffset = glm::vec3(0.8f, 0.0f, 0.0f);
+	}
+	else if (m_Axis == GizmoAxis::Y)
+	{
+		transform->Rotation = glm::radians(glm::vec3(0.0f, 0.0f, 0.0f));
+		m_LocalOffset = glm::vec3(0.0f, 0.8f, 0.0f);
+	}
+	else if (m_Axis == GizmoAxis::Z)
+	{
+		transform->Rotation = glm::radians(glm::vec3(90.0f, 0.0f, 0.0f));
+		m_LocalOffset = glm::vec3(0.0f, 0.0f, 0.8f);
 	}
 }
 

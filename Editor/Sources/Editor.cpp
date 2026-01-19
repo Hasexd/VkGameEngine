@@ -9,6 +9,13 @@ namespace
 
 		LOG_ERROR("Vulkan Error: VkResult = {}", static_cast<u32>(err));
 	}
+
+	void FlushToZero(glm::vec3& vector)
+	{
+		if (std::abs(vector.x) < 0.02f) vector.x = 0.f;
+		if (std::abs(vector.y) < 0.02f) vector.y = 0.f;
+		if (std::abs(vector.z) < 0.02f) vector.z = 0.f;
+	}
 }
 
 Editor::Editor()
@@ -33,19 +40,19 @@ Editor::Editor()
 	CreateDebugLinePipeline();
 	CreateGizmoPipeline();
 
-	auto obj = AddObject<Cube>("Red cube");
+	auto obj = AddObject<Cube>("Cube 1");
 	obj->GetComponent<Core::Transform>()->Position = { 0.0f, 0.0f, 5.0f };
 	obj->AddComponent<Core::Material>();
 
 	auto material = obj->GetComponent<Core::Material>();
-	material->Color = glm::vec3(1.0f, 0.0f, 0.0f);
+	material->Color = glm::vec3(0.3f, 0.2f, 0.6f);
 
-	auto obj2 = AddObject<Cube>("Green cube");
+	auto obj2 = AddObject<Cube>("Cube 2");
 	obj2->GetComponent<Core::Transform>()->Position = { -5.0f, 0.0f, 5.0f };
 	obj2->AddComponent<Core::Material>();
 
 	material = obj2->GetComponent<Core::Material>();
-	material->Color = glm::vec3(0.0f, 1.0f, 0.0f);
+	material->Color = glm::vec3(0.4f, 0.7f, 0.2f);
 
 	auto obj3 = AddObject<Plane>("Floor");
 	obj3->GetComponent<Core::Transform>()->Position = { 0.0f, -2.0f, 0.0f };
@@ -112,15 +119,14 @@ void Editor::InitGizmos()
 	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, GizmoType::Translate, GizmoAxis::Y));
 	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, GizmoType::Translate, GizmoAxis::Z));
 
-	/*
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(GizmoType::Rotate, GizmoAxis::X));
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(GizmoType::Rotate, GizmoAxis::Y));
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(GizmoType::Rotate, GizmoAxis::Z));
+	
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, GizmoType::Rotate, GizmoAxis::X));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, GizmoType::Rotate, GizmoAxis::Y));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, GizmoType::Rotate, GizmoAxis::Z));
 
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(GizmoType::Scale, GizmoAxis::X));
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(GizmoType::Scale, GizmoAxis::Y));
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(GizmoType::Scale, GizmoAxis::Z));*/
-
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, GizmoType::Scale, GizmoAxis::X));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, GizmoType::Scale, GizmoAxis::Y));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, GizmoType::Scale, GizmoAxis::Z));
 }
 
 void Editor::OnEvent(Core::Event& event)
@@ -310,6 +316,24 @@ bool Editor::OnKeyPressed(Core::KeyPressedEvent& event)
 {
 	m_PressedKeys.insert(event.GetKeyCode());
 
+	if (event.GetKeyCode() == GLFW_KEY_W && m_PressedKeys.count(GLFW_KEY_LEFT_CONTROL))
+	{
+		m_ActiveGizmoType = GizmoType::Translate;
+		return true;
+	}
+
+	if (event.GetKeyCode() == GLFW_KEY_E && m_PressedKeys.count(GLFW_KEY_LEFT_CONTROL))
+	{
+		m_ActiveGizmoType = GizmoType::Rotate;
+		return true;
+	}
+
+	if (event.GetKeyCode() == GLFW_KEY_R && m_PressedKeys.count(GLFW_KEY_LEFT_CONTROL))
+	{
+		m_ActiveGizmoType = GizmoType::Scale;
+		return true;
+	}
+
 	if (event.GetKeyCode() == GLFW_KEY_ESCAPE)
 	{
 		Core::Application::Get().SetCursorState(GLFW_CURSOR_NORMAL);
@@ -337,10 +361,12 @@ bool Editor::OnMouseMoved(Core::MouseMovedEvent& event)
 {
 	if (m_ActiveGizmo)
 	{
-		if (m_ActiveGizmo->GetType() == GizmoType::Translate)
+		GizmoType type = m_ActiveGizmo->GetType();
+		GizmoAxis axis = m_ActiveGizmo->GetAxis();
+
+		if (type == GizmoType::Translate)
 		{
 			glm::vec3 point = m_SelectedObject->GetComponent<Core::Transform>()->Position;
-			GizmoAxis axis = m_ActiveGizmo->GetAxis();
 
 			if (axis == GizmoAxis::X)
 			{
@@ -356,6 +382,36 @@ bool Editor::OnMouseMoved(Core::MouseMovedEvent& event)
 				AxisTranslationDragger(glm::vec3(0.0f, 0.0f, 1.0f), point);
 			}
 			m_SelectedObject->GetComponent<Core::Transform>()->Position = point;
+		}
+		else if (type == GizmoType::Rotate)
+		{
+			if (axis == GizmoAxis::X)
+			{
+				AxisRotationDragger(glm::vec3(1.0f, 0.0f, 0.0f));
+			}
+			else if (axis == GizmoAxis::Y)
+			{
+				AxisRotationDragger(glm::vec3(0.0f, 1.0f, 0.0f));
+			}
+			else if (axis == GizmoAxis::Z)
+			{
+				AxisRotationDragger(glm::vec3(0.0f, 0.0f, 1.0f));
+			}
+		}
+		else if (type == GizmoType::Scale)
+		{
+			if (axis == GizmoAxis::X)
+			{
+				AxisScaleDragger(glm::vec3(1.0f, 0.0f, 0.0f));
+			}
+			else if (axis == GizmoAxis::Y)
+			{
+				AxisScaleDragger(glm::vec3(0.0f, 1.0f, 0.0f));
+			}
+			else if (axis == GizmoAxis::Z)
+			{
+				AxisScaleDragger(glm::vec3(0.0f, 0.0f, 1.0f));
+			}
 		}
 
 		m_LastMouseX = event.GetX();
@@ -386,12 +442,12 @@ void Editor::PlaneTranslationDragger(const glm::vec3& planeNormal, glm::vec3& po
 {
 	const glm::vec3 planePoint = m_SelectedObject->GetComponent<Core::Transform>()->Position;
 	const Core::Ray ray = GetMouseRay();
-	const float denom = glm::dot(planeNormal, ray.Direction);
+	const f32 denom = glm::dot(planeNormal, ray.Direction);
 
 	if (std::abs(denom) == 0.0f)
 		return;
 
-	const float t = glm::dot(planePoint - ray.Origin, planeNormal) / denom;
+	const f32 t = glm::dot(planePoint - ray.Origin, planeNormal) / denom;
 	if (t < 0)
 		return;
 
@@ -402,14 +458,118 @@ void Editor::AxisTranslationDragger(const glm::vec3& axis, glm::vec3& point)
 {
 	const glm::vec3 planeTangent = glm::cross(axis, point - m_Camera.Position);
 	const glm::vec3 planeNormal = glm::cross(axis, planeTangent);
-	PlaneTranslationDragger(planeNormal, point);
 
+	const Core::Ray ray = GetMouseRay();
+	const f32 denom = glm::dot(ray.Direction, planeNormal);
 
-	glm::vec3& objPosition = m_SelectedObject->GetComponent<Core::Transform>()->Position;
-	point = objPosition +
-		axis * glm::dot(point - objPosition, axis);
+	if (std::abs(denom) < 0.0001f)
+		return;
+
+	const f32 t = glm::dot(point - ray.Origin, planeNormal) / denom;
+
+	if (t < 0)
+		return;
+
+	glm::vec3 planeIntersection = ray.Origin + ray.Direction * t;
+	glm::vec3 projectedPoint = point + axis * glm::dot(planeIntersection - point, axis);
+	glm::vec3 delta = projectedPoint - m_ClickOffset;
+
+	point += delta;
+
+	m_ClickOffset = projectedPoint;
 }
 
+void Editor::AxisRotationDragger(const glm::vec3& axis)
+{
+	auto transform = m_SelectedObject->GetComponent<Core::Transform>();
+
+	glm::mat4 rotationMatrix = glm::mat4_cast(transform->GetRotationQuat());
+	glm::vec3 worldAxis = glm::normalize(glm::vec3(rotationMatrix * glm::vec4(axis, 0.0f)));
+
+	glm::vec4 plane = glm::vec4(worldAxis, -glm::dot(worldAxis, m_ClickOffset));
+
+	const Core::Ray ray = GetMouseRay();
+	const f32 denom = glm::dot(ray.Direction, glm::vec3(plane));
+
+	if (std::abs(denom) < 0.0001f)
+		return;
+
+	const f32 t = -(glm::dot(ray.Origin, glm::vec3(plane)) + plane.w) / denom;
+
+	if (t < 0)
+		return;
+
+	glm::vec3 currentPoint = ray.Origin + ray.Direction * t;
+	glm::vec3 centerOfRotation = transform->Position + worldAxis * glm::dot(m_ClickOffset - transform->Position, worldAxis);
+
+	glm::vec3 arm1 = glm::normalize(m_ClickOffset - centerOfRotation);
+	glm::vec3 arm2 = glm::normalize(currentPoint - centerOfRotation);
+
+	f32 d = glm::dot(arm1, arm2);
+
+	if (d > 0.999f)
+		return;
+
+	f32 angle = std::acos(glm::clamp(d, -1.0f, 1.0f));
+
+	if (angle < 0.001f)
+		return;
+
+	glm::vec3 rotationAxis = glm::normalize(glm::cross(arm1, arm2));
+
+	if (glm::dot(rotationAxis, worldAxis) < 0)
+		angle = -angle;
+
+	glm::quat deltaRotation = glm::angleAxis(angle, worldAxis);
+
+	glm::quat currentRotation = transform->GetRotationQuat();
+	glm::quat newRotation = deltaRotation * currentRotation;
+
+	transform->Rotation = glm::eulerAngles(newRotation);
+
+	m_ClickOffset = currentPoint;
+}
+
+void Editor::AxisScaleDragger(const glm::vec3& axis)
+{
+	auto transform = m_SelectedObject->GetComponent<Core::Transform>();
+
+	const glm::vec3 planeTangent = glm::cross(axis, transform->Position - m_Camera.Position);
+	const glm::vec3 planeNormal = glm::cross(axis, planeTangent);
+	const glm::vec3 planePoint = transform->Position;
+
+	const Core::Ray ray = GetMouseRay();
+
+	const f32 denom = glm::dot(ray.Direction, planeNormal);
+	
+	if (std::abs(denom) == 0)
+		return;
+
+	const f32 t = glm::dot(planePoint - ray.Origin, planeNormal) / denom; 
+
+	if (t < 0)
+		return;
+
+	const glm::vec3 intersectionPoint = ray.Origin + ray.Direction * t;
+
+	glm::vec3 projectedPoint = transform->Position + axis * glm::dot(intersectionPoint - transform->Position, axis);
+
+	f32 scaleDelta = glm::dot(projectedPoint - m_ClickOffset, axis) * 2.0f;
+
+	if (m_PressedKeys.count(GLFW_KEY_LEFT_CONTROL))
+	{
+		glm::vec3 newScale = transform->Scale + glm::vec3(scaleDelta);
+		transform->Scale = glm::clamp(newScale, glm::vec3(0.01f), glm::vec3(1000.0f));
+	}
+	else
+	{
+		glm::vec3 scaleChange = axis * scaleDelta;
+		glm::vec3 newScale = transform->Scale + scaleChange;
+		transform->Scale = glm::clamp(newScale, glm::vec3(0.01f), glm::vec3(1000.0f));
+	}
+
+	m_ClickOffset = projectedPoint;
+}
 
 bool Editor::OnMouseButtonPressed(Core::MouseButtonPressedEvent& event)
 {
@@ -453,11 +613,56 @@ bool Editor::TestGizmoClick()
 
 	Core::Ray ray = GetMouseRay();
 	Core::HitResult hitResult = GizmoRaycast(ray.Origin, ray.Direction, 1e10f);
-	
-	if(hitResult.Hit)
+
+	if (hitResult.Hit)
 	{
 		Core::Application::Get().SetCursorState(GLFW_CURSOR_DISABLED);
 		m_ActiveGizmo = dynamic_cast<Gizmo*>(hitResult.HitObject);
+
+		auto transform = m_SelectedObject->GetComponent<Core::Transform>();
+		glm::vec3 hitPoint = ray.Origin + ray.Direction * hitResult.HitDistance;
+
+		if (m_ActiveGizmo->GetType() == GizmoType::Scale)
+		{
+			glm::vec3 axis = m_ActiveGizmo->GetAxis() == GizmoAxis::X ? glm::vec3(1, 0, 0) :
+				m_ActiveGizmo->GetAxis() == GizmoAxis::Y ? glm::vec3(0, 1, 0) :
+				glm::vec3(0, 0, 1);
+
+			m_ClickOffset = transform->Position + axis * glm::dot(hitPoint - transform->Position, axis);
+		}
+		else if (m_ActiveGizmo->GetType() == GizmoType::Translate)
+		{
+			glm::vec3 axis = m_ActiveGizmo->GetAxis() == GizmoAxis::X ? glm::vec3(1, 0, 0) :
+				m_ActiveGizmo->GetAxis() == GizmoAxis::Y ? glm::vec3(0, 1, 0) :
+				glm::vec3(0, 0, 1);
+
+			glm::vec3 planeTangent = glm::cross(axis, transform->Position - m_Camera.Position);
+			glm::vec3 planeNormal = glm::cross(axis, planeTangent);
+
+			f32 denom = glm::dot(ray.Direction, planeNormal);
+			if (std::abs(denom) > 0.0001f)
+			{
+				f32 t = glm::dot(transform->Position - ray.Origin, planeNormal) / denom;
+				if (t >= 0)
+				{
+					glm::vec3 planeIntersection = ray.Origin + ray.Direction * t;
+					m_ClickOffset = transform->Position + axis * glm::dot(planeIntersection - transform->Position, axis);
+				}
+				else
+				{
+					m_ClickOffset = transform->Position;
+				}
+			}
+			else
+			{
+				m_ClickOffset = transform->Position;
+			}
+		}
+		else
+		{
+			m_ClickOffset = hitPoint;
+		}
+
 		return true;
 	}
 
@@ -883,7 +1088,69 @@ void Editor::DrawDebugLine(const glm::vec3& start, const glm::vec3& end, const g
 
 Core::HitResult Editor::GizmoRaycast(const glm::vec3& start, const glm::vec3& direction, f32 maxDistance)
 {
-	return RaycastInternal(start, direction, maxDistance, m_Gizmos);
+	u32 startIdx = m_ActiveGizmoType == GizmoType::Translate ? 0 :
+		m_ActiveGizmoType == GizmoType::Rotate ? 3 : 6;
+	u32 endIdx = startIdx + 3;
+
+	f32 closestDistance = std::numeric_limits<f32>::max();
+	Core::Object* closestObject = nullptr;
+
+	for (u32 i = startIdx; i < endIdx; i++)
+	{
+		auto& gizmo = m_Gizmos[i];
+
+		if (!gizmo->HasComponent<Core::Mesh>())
+			continue;
+
+		auto transform = gizmo->GetComponent<Core::Transform>();
+
+		glm::mat4 invTransform = glm::inverse(transform->GetModelMatrix());
+		glm::vec3 localOrigin = glm::vec3(invTransform * glm::vec4(start, 1.0f));
+		glm::vec3 localDirection = glm::normalize(glm::vec3(invTransform * glm::vec4(direction, 0.0f)));
+
+		auto mesh = gizmo->GetComponent<Core::Mesh>();
+		const auto& vertices = mesh->GetVertices();
+		const auto& indices = mesh->GetIndices();
+
+		for (usize j = 0; j < indices.size(); j += 3)
+		{
+			if (indices[j] >= vertices.size() ||
+				indices[j + 1] >= vertices.size() ||
+				indices[j + 2] >= vertices.size())
+			{
+				continue;
+			}
+
+			glm::vec3 v0 = vertices[indices[j]].Position;
+			glm::vec3 v1 = vertices[indices[j + 1]].Position;
+			glm::vec3 v2 = vertices[indices[j + 2]].Position;
+
+			Core::Ray localRay = {};
+			localRay.Origin = localOrigin;
+			localRay.Direction = localDirection;
+
+			f32 distance;
+			if (RayTriangleIntersection(localRay, v0, v1, v2, distance))
+			{
+				glm::vec3 localIntersection = localOrigin + localDirection * distance;
+				glm::vec3 worldIntersection = glm::vec3(transform->GetModelMatrix() * glm::vec4(localIntersection, 1.0f));
+				f32 worldDistance = glm::length(worldIntersection - start);
+
+				if (worldDistance < closestDistance && worldDistance <= maxDistance)
+				{
+					closestDistance = worldDistance;
+					closestObject = gizmo.get();
+				}
+			}
+		}
+	}
+
+	Core::HitResult result = {};
+	result.HitObject = closestObject;
+	result.HitDistance = closestDistance;
+	result.Hit = (closestObject != nullptr);
+
+	return result;
 }
 
 Core::HitResult Editor::Raycast(const glm::vec3& start, const glm::vec3& direction, f32 maxDistance)

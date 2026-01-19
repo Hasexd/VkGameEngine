@@ -41,10 +41,15 @@ public:
 
 	void SetPosition(const glm::vec3& position);
 	void SetScale(const glm::vec3& scale);
+
+private:
+	void SetupTranslationGizmo(Core::Transform* transform);
+	void SetupRotationGizmo(Core::Transform* transform);
+	void SetupScaleGizmo(Core::Transform* transform);
 private:
 	GizmoType m_Type;
 	GizmoAxis m_Axis;
 
 	glm::vec3 m_Color;
-	glm::vec3 m_LocalOffset;
+	glm::vec3 m_LocalOffset = glm::vec3(0.0f);
 };
