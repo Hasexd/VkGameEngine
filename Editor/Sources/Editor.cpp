@@ -289,7 +289,7 @@ void Editor::OnUpdate(f32 deltaTime)
 	if (!glfwGetWindowAttrib(app.GetWindow().GetHandle(), GLFW_FOCUSED))
 		return;
 
-	if (m_PressedKeys.count(GLFW_KEY_W))
+	if (!m_PressedKeys.count(GLFW_KEY_LEFT_CONTROL) && m_PressedKeys.count(GLFW_KEY_W))
 		m_Camera.Move(-m_Camera.Front, deltaTime);
 	if (m_PressedKeys.count(GLFW_KEY_S))
 		m_Camera.Move(m_Camera.Front, deltaTime);
