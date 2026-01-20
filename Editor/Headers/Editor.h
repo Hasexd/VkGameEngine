@@ -55,9 +55,11 @@ public:
 private:
 	void InitImGui();
 	void InitGizmos();
+
 	void RenderImGui();
 
 	void UpdateVPData();
+	void UpdateMaterialsBuffer();
 	void PushConstants(Core::Object* obj);
 
 	void RenderObjects(Core::Application& app);
@@ -93,6 +95,7 @@ private:
 	std::vector<std::unique_ptr<Core::Object>> m_Objects;
 	Core::Object* m_SelectedObject = nullptr;
 
+	std::vector<Core::Material*> m_Materials;
 
 	std::vector<std::unique_ptr<Gizmo>> m_Gizmos;
 	GizmoType m_ActiveGizmoType = GizmoType::Translate;
@@ -109,6 +112,8 @@ private:
 	Core::Shader m_OutlineFillShader;
 	Core::Shader m_DebugLineShader;
 	Core::Shader m_GizmoShader;
+
+	usize m_MaxMaterials = 100;
 
 	static inline std::vector<std::unique_ptr<DebugLine>> m_DebugLines;
 

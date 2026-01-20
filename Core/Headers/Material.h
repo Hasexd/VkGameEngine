@@ -1,9 +1,13 @@
 #pragma once
 
-#include <glm/glm.hpp>
 #include <filesystem>
+#include <fstream>
+#include <string>
+
+#include <glm/glm.hpp>
 
 #include "Component.h"
+#include "Log.h"
 
 namespace Core
 {
@@ -11,9 +15,10 @@ namespace Core
 	{
 	public:
 		void LoadFromFile(const std::filesystem::path& path);
-		[[nodiscard]] const glm::vec3& GetColor() const noexcept { return m_Color; }
-		void SetColor (const glm::vec3& color) noexcept { m_Color = color; }
-	private:
-		glm::vec3 m_Color = glm::vec3(1.0f);
+
+		glm::vec3 Ambient;
+		glm::vec3 Diffuse;
+		glm::vec3 Specular;
+		f32 Shininess;
 	};
 }

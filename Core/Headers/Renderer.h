@@ -65,8 +65,10 @@ namespace Core
 		[[nodiscard]] VmaAllocator GetVmaAllocator() const { return m_Allocator; }
 
 		[[nodiscard]] Buffer& GetVPBuffer() { return m_VPBuffer; }
+		[[nodiscard]] Buffer& GetMaterialsBuffer() { return m_MaterialsBuffer; }
 		[[nodiscard]] VkSampleCountFlagBits GetMSAASamples() const { return m_MSAASamples; }
 		[[nodiscard]] VkPhysicalDeviceLimits GetPhysicalDeviceLimits() const { return m_PhysDeviceLimits; }
+
 
 
 		Shader CreateShader(const VkRenderPass& renderPass, const std::vector<DescriptorBinding>& bindings,
@@ -89,6 +91,8 @@ namespace Core
 
 		Buffer CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+
+
 
 	private:
 		void InitCoreData();
@@ -144,6 +148,7 @@ namespace Core
 		VkFramebuffer m_RenderTextureFramebuffer;
 
 		Buffer m_VPBuffer;
+		Buffer m_MaterialsBuffer;
 
 		VmaAllocator m_Allocator;
 

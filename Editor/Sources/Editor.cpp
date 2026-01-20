@@ -41,6 +41,8 @@ Editor::Editor():
 	CreateDebugLinePipeline();
 	CreateGizmoPipeline();
 
+	std::filesystem::path pathToMtls = std::filesystem::path(PATH_TO_MTLS);
+
 	auto obj = AddObject<Cube>("Cube 1", m_AssetManager.get());
 	obj->GetComponent<Core::Transform>()->Position = { 0.0f, 0.0f, 5.0f };
 
@@ -50,6 +52,16 @@ Editor::Editor():
 	auto obj3 = AddObject<Plane>("Floor", m_AssetManager.get());
 	obj3->GetComponent<Core::Transform>()->Position = { 0.0f, -2.0f, 0.0f };
 	obj3->GetComponent<Core::Transform>()->Scale = { 20.0f, 1.0f, 20.0f };
+
+	auto goldMaterial = m_AssetManager->Load<Core::Material>(pathToMtls / "Gold.mtl");
+	obj->AddAssetComponent<Core::Material>(goldMaterial->GetID());
+
+	auto crystalMaterial = m_AssetManager->Load<Core::Material>(pathToMtls / "Crystal.mtl");
+	obj2->AddAssetComponent<Core::Material>(crystalMaterial->GetID());
+
+	auto NeonPinkMaterial = m_AssetManager->Load<Core::Material>(pathToMtls / "NeonPink.mtl");
+	obj3->AddAssetComponent<Core::Material>(NeonPinkMaterial->GetID());
+
 
 	// uncomment for porsche
 	/*auto porsche = AddObject<Core::Object>("Porsche 911");
@@ -199,14 +211,20 @@ void Editor::RenderSelectedObjectOutline(Core::Application& app)
 		m_OutlineShader.PipelineLayout, 0, 1, &m_OutlineShader.DescriptorSet, 0, nullptr);
 	vkCmdSetLineWidth(app.GetCurrentCommandBuffer(), 3.0f);
 
-	PushConstants(m_SelectedObject);
+	glm::mat4 modelMatrix = m_SelectedObject->GetComponent<Core::Transform>()->GetModelMatrix();
+
+	vkCmdPushConstants(app.GetCurrentCommandBuffer(), m_OutlineShader.PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0,
+		sizeof(glm::mat4), &modelMatrix);
+
 	DrawObject(m_SelectedObject);
 
 	vkCmdBindPipeline(app.GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_OutlineFillShader.Pipeline);
 	vkCmdBindDescriptorSets(app.GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
 		m_OutlineFillShader.PipelineLayout, 0, 1, &m_OutlineFillShader.DescriptorSet, 0, nullptr);
 
-	PushConstants(m_SelectedObject);
+	vkCmdPushConstants(app.GetCurrentCommandBuffer(), m_OutlineFillShader.PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0,
+		sizeof(glm::mat4), &modelMatrix);
+
 	DrawObject(m_SelectedObject);
 }
 
@@ -241,20 +259,57 @@ void Editor::UpdateVPData()
 	vmaUnmapMemory(app.GetVmaAllocator(), app.GetVPBuffer().Allocation);
 }
 
+void Editor::UpdateMaterialsBuffer()
+{
+	Core::Application& app = Core::Application::Get();
+
+	m_Materials = m_AssetManager->GetAll<Core::Material>();
+	std::vector<Core::MaterialUBO> materialUBOs;
+	materialUBOs.reserve(m_Materials.size());
+
+	Core::Buffer& materialsBuffer = app.GetMaterialsBuffer();
+
+	if (m_Materials.size() > m_MaxMaterials)
+	{
+		m_MaxMaterials = m_Materials.size() * 2;
+		vmaDestroyBuffer(Core::Application::Get().GetVmaAllocator(), materialsBuffer.Buffer, materialsBuffer.Allocation);
+		materialsBuffer = app.CreateBuffer(sizeof(Core::MaterialUBO) * m_MaxMaterials,
+			VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	}
+
+	for (const auto& material : m_Materials)
+	{
+		materialUBOs.emplace_back(material->Ambient, material->Diffuse, material->Specular, material->Shininess);
+	}
+
+	void* data;
+	vmaMapMemory(app.GetVmaAllocator(), materialsBuffer.Allocation, &data);
+	memcpy(data, materialUBOs.data(), sizeof(Core::MaterialUBO) * materialUBOs.size());
+	vmaUnmapMemory(app.GetVmaAllocator(), materialsBuffer.Allocation);
+}
+
 void Editor::PushConstants(Core::Object* obj)
 {
 	Core::Application& app = Core::Application::Get();
 	Core::ObjPushConstants objPC = {};
 
-	Core::MaterialUBO matUBO;
 	if (obj->HasComponent<Core::Material>())
 	{
-		matUBO.Color = obj->GetComponent<Core::Material>()->GetColor();
+		auto objMaterial = obj->GetComponent<Core::Material>();
+		for (usize i = 0; i < m_Materials.size(); i++)
+		{
+			if (objMaterial->GetID() == m_Materials[i]->GetID())
+			{
+				objPC.MaterialIndex = i;
+			}
+		}
 	}
-	
-	objPC.Model = obj->GetComponent<Core::Transform>()->GetModelMatrix();
-	objPC.Material = matUBO;
+	else
+	{
+		objPC.MaterialIndex = -1;
+	}
 
+	objPC.Model = obj->GetComponent<Core::Transform>()->GetModelMatrix();
 	vkCmdPushConstants(app.GetCurrentCommandBuffer(), app.GetGraphicsPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Core::ObjPushConstants), &objPC);
 }
 
@@ -285,6 +340,8 @@ void Editor::OnUpdate(f32 deltaTime)
 	{
 		line->Lifetime -= deltaTime;
 	}
+
+	UpdateMaterialsBuffer();
 
 	vkDeviceWaitIdle(app.GetVulkanDevice());
 	m_DebugLines.erase(std::remove_if(m_DebugLines.begin(), m_DebugLines.end(),
@@ -711,10 +768,10 @@ void Editor::CreateOutlinePipeline()
 	scissor.offset = { 0, 0 };
 	scissor.extent = { extent.width, extent.height };
 
-	VkPushConstantRange objPushConstantRange = {};
-	objPushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	objPushConstantRange.offset = 0;
-	objPushConstantRange.size = sizeof(Core::ObjPushConstants);
+	VkPushConstantRange outlinePcRange = {};
+	outlinePcRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	outlinePcRange.offset = 0;
+	outlinePcRange.size = sizeof(glm::mat4);
 
 	VkVertexInputBindingDescription bindingDescription = {};
 	bindingDescription.binding = 0;
@@ -770,7 +827,7 @@ void Editor::CreateOutlinePipeline()
 	m_OutlineShader = app.CreateShader(
 		app.GetRenderTextureRenderPass(),
 		bindings,
-		{ objPushConstantRange },
+		{ outlinePcRange },
 		&bindingDescription,
 		attributeDescriptions,
 		&viewport,
@@ -798,7 +855,7 @@ void Editor::CreateOutlinePipeline()
 	m_OutlineFillShader = app.CreateShader(
 		app.GetRenderTextureRenderPass(),
 		bindings,
-		{ objPushConstantRange },
+		{ outlinePcRange },
 		&bindingDescription,
 		attributeDescriptions,
 		&viewport,

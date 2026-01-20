@@ -26,7 +26,6 @@ project "Core"
 
     defines {
         "PATH_TO_SHADERS=\"" .. shaderPath .. "\"",
-        "PATH_TO_OBJS=\"" .. objPath .. "\""
     }
 
     includedirs {

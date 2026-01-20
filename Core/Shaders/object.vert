@@ -2,7 +2,10 @@
 
 struct Material
 {
-	vec3 color;
+	vec3 ambient;
+	vec3 diffuse;
+	vec3 specular;
+	float shininess;
 };
 
 layout(location = 0) in vec3 inPosition;
@@ -19,15 +22,32 @@ layout(binding = 0) readonly buffer VP
 	mat4 projection;
 } vp;
 
+layout (binding = 1) readonly buffer MaterialBuffer
+{
+	Material[] materials;
+};
+
 layout(push_constant) uniform PushConstants 
 {
 	mat4 model;
-	Material material;
+	uint materialIndex;
 } pushConstants;
-
 
 void main()
 {
 	gl_Position = vp.projection * vp.view * pushConstants.model * vec4(inPosition, 1.0);
-	fragColor = pushConstants.material.color;
+	
+	mat3 normalMatrix = mat3(transpose(inverse(pushConstants.model)));
+	fragNormal = normalMatrix * inNormal;
+	
+	if(pushConstants.materialIndex == -1)
+	{
+		fragColor = vec3(0.5, 0.5, 0.5);
+	}
+	else
+	{
+		fragColor = materials[pushConstants.materialIndex].diffuse;
+	}
+	
+	fragTexCoord = inTexCoord;
 }

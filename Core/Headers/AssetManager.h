@@ -16,27 +16,17 @@ namespace Core
 	public:
 		~AssetManager();
 
-		// for testing purposes
-		template<std::derived_from<Asset> T, typename... Args>
-		T* Create(Args&&... args);
-
 		template<std::derived_from<Asset> T>
 		T* Load(const std::filesystem::path& path);
 
 		template<std::derived_from<Asset> T>
 		T* Get(const UUID& id);
+
+		template<std::derived_from<Asset> T>
+		std::vector<T*> GetAll();
 	private:
 		std::unordered_map<std::filesystem::path, std::unique_ptr<Asset>> m_Assets;
 	};
-
-	template<std::derived_from<Asset> T, typename... Args>
-	T* AssetManager::Create(Args&&... args)
-	{
-		auto asset = std::make_unique<T>(std::forward<Args>(args)...);
-		T* assetPtr = asset.get();
-		m_Assets[std::filesystem::path()] = std::move(asset);
-		return assetPtr;
-	}
 
 	template<std::derived_from<Asset> T>
 	T* AssetManager::Load(const std::filesystem::path& path)
@@ -74,5 +64,19 @@ namespace Core
 		}
 		LOG_ERROR("Asset with ID: {} not found.", static_cast<std::string>(id));
 		return nullptr;
+	}
+
+	template<std::derived_from<Asset> T>
+	std::vector<T*> AssetManager::GetAll()
+	{
+		std::vector<T*> assets;
+		for (const auto& [path, asset] : m_Assets)
+		{
+			if (auto castedAsset = dynamic_cast<T*>(asset.get()); castedAsset)
+			{
+				assets.push_back(castedAsset);
+			}
+		}
+		return assets;
 	}
 }

@@ -124,16 +124,19 @@ namespace Core
 		glm::mat4 Projection;
 	};
 
-	// cant use Material from Component.h because it might have extra unwanted (in the shader) members in the future
+	// cant use Material from Material.h because it might have extra unwanted (in the shader) members in the future
 	struct MaterialUBO
 	{
-		alignas(16) glm::vec3 Color = glm::vec3(1.0f);
+		alignas(16) glm::vec3 Ambient = glm::vec3(0.0f);
+		alignas(16) glm::vec3 Diffuse = glm::vec3(0.0f);
+		alignas(16) glm::vec3 Specular = glm::vec3(0.0f);
+		f32 Shininess = 0.0f;
 	};
 
 	struct ObjPushConstants
 	{
 		glm::mat4 Model;
-		MaterialUBO Material;
+		u32 MaterialIndex;
 	};
 
 	struct MeshBuffers

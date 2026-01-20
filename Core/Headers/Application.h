@@ -88,6 +88,8 @@ namespace Core
 				viewport, scissor, depthStencilInfo, dynamicStates, multisampleInfo, cullMode, polygonMode, topology, vert, frag); }
 
 		[[nodiscard]] Buffer& GetVPBuffer() { return m_Renderer->GetVPBuffer(); }
+		[[nodiscard]] Buffer& GetMaterialsBuffer() { return m_Renderer->GetMaterialsBuffer(); }
+
 
 		void UpdateDescriptorSets(const Shader& shader) { m_Renderer->UpdateDescriptorSets(shader); }
 

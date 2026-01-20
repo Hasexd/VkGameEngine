@@ -1,10 +1,5 @@
 #version 450
 
-struct Material
-{
-    vec3 color;
-};
-
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec3 inTexCoord;
@@ -20,7 +15,6 @@ layout(binding = 0) readonly buffer VP
 layout(push_constant) uniform PushConstants 
 {
     mat4 model;
-    Material material;
 } pushConstants;
 
 void main()

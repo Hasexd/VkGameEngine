@@ -165,6 +165,7 @@ namespace Core
 	void Renderer::CreateBuffers()
 	{
 		m_VPBuffer = CreateBuffer(sizeof(VP), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+		m_MaterialsBuffer = CreateBuffer(sizeof(MaterialUBO) * 100, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 	}
 
 	void Renderer::CreateSwapchain()
@@ -394,7 +395,8 @@ namespace Core
 
 		std::vector<DescriptorBinding> bindings =
 		{
-			DescriptorBinding(m_VPBuffer, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
+			DescriptorBinding(m_VPBuffer, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
+			DescriptorBinding(m_MaterialsBuffer, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
 		};
 
 		auto vert = m_ShaderDirectory / "Compiled" / "object.vert.spv";
@@ -1403,6 +1405,7 @@ namespace Core
 		vkDestroySampler(m_CoreData.Device, m_RenderTextureSampler, nullptr);
 
 		vmaDestroyBuffer(m_Allocator, m_VPBuffer.Buffer, m_VPBuffer.Allocation);
+		vmaDestroyBuffer(m_Allocator, m_MaterialsBuffer.Buffer, m_MaterialsBuffer.Allocation);
 
 		vmaDestroyImage(m_Allocator, m_RenderTexture.Image, m_RenderTexture.Allocation);
 		vmaDestroyImage(m_Allocator, m_RenderTextureResolved.Image, m_RenderTextureResolved.Allocation);
