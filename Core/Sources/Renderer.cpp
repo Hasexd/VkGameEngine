@@ -363,7 +363,7 @@ namespace Core
 
 		VkVertexInputBindingDescription bindingDescription = {};
 		bindingDescription.binding = 0;
-		bindingDescription.stride = sizeof(Vertex);
+		bindingDescription.stride = sizeof(objl::Vertex);
 		bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
 		std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
@@ -372,17 +372,17 @@ namespace Core
 		attributeDescriptions[0].binding = 0;
 		attributeDescriptions[0].location = 0;
 		attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-		attributeDescriptions[0].offset = offsetof(Vertex, Position);
+		attributeDescriptions[0].offset = offsetof(objl::Vertex, Position);
 
 		attributeDescriptions[1].binding = 0;
 		attributeDescriptions[1].location = 1;
 		attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-		attributeDescriptions[1].offset = offsetof(Vertex, Normal);
+		attributeDescriptions[1].offset = offsetof(objl::Vertex, Normal);
 
 		attributeDescriptions[2].binding = 0;
 		attributeDescriptions[2].location = 2;
 		attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-		attributeDescriptions[2].offset = offsetof(Vertex, TextureCoordinate);
+		attributeDescriptions[2].offset = offsetof(objl::Vertex, TextureCoordinate);
 
 		VkPipelineDepthStencilStateCreateInfo depthStencil = {};
 		depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
@@ -1013,7 +1013,6 @@ namespace Core
 
 		vkQueueSubmit(m_RenderData.GraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
 		vkQueueWaitIdle(m_RenderData.GraphicsQueue);
-
 	}
 
 	void Renderer::BeginFrame()
@@ -1217,13 +1216,13 @@ namespace Core
 		vkCmdEndRenderPass(m_CurrentCommandBuffer);
 	}
 
-	MeshBuffers Renderer::CreateMeshBuffers(const std::vector<Vertex>& vertices, const std::vector<u32>& indices)
+	MeshBuffers Renderer::CreateMeshBuffers(const std::vector<objl::Vertex>& vertices, const std::vector<u32>& indices)
 	{
 		MeshBuffers meshBuffers;
 		meshBuffers.Vertices = vertices;
 		meshBuffers.Indices = indices;
 
-		VkDeviceSize vertexBufferSize = sizeof(Vertex) * vertices.size();
+		VkDeviceSize vertexBufferSize = sizeof(objl::Vertex) * vertices.size();
 
 		Buffer stagingBuffer = CreateBuffer(
 			vertexBufferSize,

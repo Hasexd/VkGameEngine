@@ -7,6 +7,7 @@
 #include <array>
 #include <functional>
 #include <cstddef>
+#include <memory>
 
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
@@ -16,7 +17,6 @@
 #include "Log.h"
 #include "Types.h"
 #include "VkTypes.h"
-#include "Mesh.h"
 #include "Transform.h"
 #include "Object.h"
 #include "Camera.h"
@@ -45,7 +45,7 @@ namespace Core
 		void SetBackgroundColor(const VkClearColorValue& color) { m_ClearColor = color; };
 		void SetWireframeMode(const bool enabled) { m_WireframeMode = enabled; }
 
-		MeshBuffers CreateMeshBuffers(const std::vector<Vertex>& vertices, const std::vector<u32>& indices);
+		MeshBuffers CreateMeshBuffers(const std::vector<objl::Vertex>& vertices, const std::vector<u32>& indices);
 
 		[[nodiscard]] VkCommandBuffer GetCurrentCommandBuffer() const { return m_CurrentCommandBuffer; }
 		[[nodiscard]] VkPipelineLayout GetGraphicsPipelineLayout() const { return m_GraphicsShader.PipelineLayout; }

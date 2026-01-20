@@ -1,9 +1,8 @@
 #include "Plane.h"
 
-Plane::Plane(Core::ECS& ecs, const std::string& name) :
+Plane::Plane(Core::ECS& ecs, const std::string& name, Core::AssetManager* assetManager) :
 	Core::Object(ecs, name)
 {
-	AddComponent<Core::Mesh>();
-	auto mesh = GetComponent<Core::Mesh>();
-	*mesh = Core::Application::CreateMeshFromOBJ("Plane.obj");
+	auto mesh = assetManager->Load<Core::Mesh>(std::filesystem::path(PATH_TO_OBJS) / "Plane.obj");
+	AddAssetComponent<Core::Mesh>(mesh->GetID());
 }

@@ -9,10 +9,4 @@ namespace Core
 	{
 		AddComponent<Transform>();
 	}
-
-	void Object::Draw(VkCommandBuffer cmd)
-	{
-		Mesh* mesh = GetComponent<Mesh>();
-		mesh->Draw(cmd);
-	}
 }

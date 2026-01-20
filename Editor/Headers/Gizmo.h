@@ -4,6 +4,7 @@
 #include "Mesh.h"
 #include "Application.h"
 #include "Object.h"
+#include "AssetManager.h"
 
 enum class GizmoType
 {
@@ -29,8 +30,7 @@ struct GizmoPushConstants
 class Gizmo : public Core::Object
 {
 public:
-	Gizmo(Core::ECS& ecs, GizmoType type, GizmoAxis axis);
-	~Gizmo() override;
+	Gizmo(Core::ECS& ecs, Core::AssetManager* assetManager, GizmoType type, GizmoAxis axis);
 
 	[[nodiscard]] GizmoType GetType() const noexcept { return m_Type; }
 	[[nodiscard]] GizmoAxis GetAxis() const noexcept { return m_Axis; }

@@ -11,6 +11,24 @@ namespace Core
 
 	}
 
+	Mesh::~Mesh()
+	{
+		Destroy(Core::Application::Get().GetVmaAllocator());
+	}
+
+	void Mesh::LoadFromFile(const std::filesystem::path& path)
+	{
+		objl::Loader loader;
+		loader.LoadFile(path.string());
+
+		MeshBuffers meshBuffers = Application::Get().CreateMeshBuffers(loader.LoadedVertices, loader.LoadedIndices);
+
+		m_VertexBuffer = meshBuffers.VertexBuffer;
+		m_IndexBuffer = meshBuffers.IndexBuffer;
+		m_Vertices = meshBuffers.Vertices;
+		m_Indices = meshBuffers.Indices;
+	}
+
 	void Mesh::Destroy(VmaAllocator allocator)
 	{
 		if (m_VertexBuffer.Buffer != VK_NULL_HANDLE)

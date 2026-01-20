@@ -1,8 +1,8 @@
 #include "Cube.h"
 
-Cube::Cube(Core::ECS& ecs, const std::string& name):
+Cube::Cube(Core::ECS& ecs, const std::string& name, Core::AssetManager* assetManager):
 	Core::Object(ecs, name)
 {
-	auto mesh = AddComponent<Core::Mesh>();
-	*mesh = Core::Application::CreateMeshFromOBJ("Cube.obj");
+	auto mesh = assetManager->Load<Core::Mesh>(std::filesystem::path(PATH_TO_OBJS) / "Cube.obj");
+	AddAssetComponent<Core::Mesh>(mesh->GetID());
 }

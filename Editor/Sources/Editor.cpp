@@ -18,7 +18,8 @@ namespace
 	}
 }
 
-Editor::Editor()
+Editor::Editor():
+	m_AssetManager(std::make_unique<Core::AssetManager>()), m_ECS(m_AssetManager.get())
 {
 	auto& app = Core::Application::Get();
 	s_MaxLineWidth = app.GetPhysicalDeviceLimits().lineWidthRange[1];
@@ -40,21 +41,15 @@ Editor::Editor()
 	CreateDebugLinePipeline();
 	CreateGizmoPipeline();
 
-	auto obj = AddObject<Cube>("Cube 1");
+	auto obj = AddObject<Cube>("Cube 1", m_AssetManager.get());
 	obj->GetComponent<Core::Transform>()->Position = { 0.0f, 0.0f, 5.0f };
-	auto material = obj->AddComponent<Core::Material>();
-	material->Color = glm::vec3(0.3f, 0.2f, 0.6f);
 
-	auto obj2 = AddObject<Cube>("Cube 2");
+	auto obj2 = AddObject<Cube>("Cube 2", m_AssetManager.get());
 	obj2->GetComponent<Core::Transform>()->Position = { -5.0f, 0.0f, 5.0f };
-	material = obj2->AddComponent<Core::Material>();
-	material->Color = glm::vec3(0.4f, 0.7f, 0.2f);
 
-	auto obj3 = AddObject<Plane>("Floor");
+	auto obj3 = AddObject<Plane>("Floor", m_AssetManager.get());
 	obj3->GetComponent<Core::Transform>()->Position = { 0.0f, -2.0f, 0.0f };
 	obj3->GetComponent<Core::Transform>()->Scale = { 20.0f, 1.0f, 20.0f };
-	material = obj3->AddComponent<Core::Material>();
-	material->Color = glm::vec3(0.5f, 0.5f, 0.5f);
 
 	// uncomment for porsche
 	/*auto porsche = AddObject<Core::Object>("Porsche 911");
@@ -70,23 +65,6 @@ Editor::Editor()
 Editor::~Editor()
 {
 	auto& app = Core::Application::Get();
-	for (auto& obj : m_Objects)
-	{
-		if(obj->HasComponent<Core::Mesh>())
-		{
-			auto mesh = obj->GetComponent<Core::Mesh>();
-
-			vmaDestroyBuffer(
-				app.GetVmaAllocator(),
-				mesh->GetVertexBuffer().Buffer,
-				mesh->GetVertexBuffer().Allocation);
-
-			vmaDestroyBuffer(
-				app.GetVmaAllocator(),
-				mesh->GetIndexBuffer().Buffer,
-				mesh->GetIndexBuffer().Allocation);
-		}
-	}
 
 	std::filesystem::path pathToImGuiIni = std::filesystem::path(PATH_TO_EDITOR) / "imgui.ini";
 	std::string pathStr = pathToImGuiIni.string();
@@ -105,22 +83,23 @@ Editor::~Editor()
 
 	m_DebugLines.clear();
 	m_Gizmos.clear();
+	m_AssetManager.reset();
 }
 
 void Editor::InitGizmos()
 {
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, GizmoType::Translate, GizmoAxis::X));
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, GizmoType::Translate, GizmoAxis::Y));
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, GizmoType::Translate, GizmoAxis::Z));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, m_AssetManager.get(), GizmoType::Translate, GizmoAxis::X));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, m_AssetManager.get(), GizmoType::Translate, GizmoAxis::Y));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, m_AssetManager.get(), GizmoType::Translate, GizmoAxis::Z));
 
 	
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, GizmoType::Rotate, GizmoAxis::X));
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, GizmoType::Rotate, GizmoAxis::Y));
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, GizmoType::Rotate, GizmoAxis::Z));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, m_AssetManager.get(), GizmoType::Rotate, GizmoAxis::X));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, m_AssetManager.get(), GizmoType::Rotate, GizmoAxis::Y));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, m_AssetManager.get(), GizmoType::Rotate, GizmoAxis::Z));
 
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, GizmoType::Scale, GizmoAxis::X));
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, GizmoType::Scale, GizmoAxis::Y));
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, GizmoType::Scale, GizmoAxis::Z));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, m_AssetManager.get(), GizmoType::Scale, GizmoAxis::X));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, m_AssetManager.get(), GizmoType::Scale, GizmoAxis::Y));
+	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, m_AssetManager.get(), GizmoType::Scale, GizmoAxis::Z));
 }
 
 void Editor::OnEvent(Core::Event& event)
@@ -154,9 +133,15 @@ void Editor::RenderObjects(Core::Application& app)
 		if (obj->HasComponent<Core::Mesh>() && obj->IsVisible())
 		{
 			PushConstants(obj.get());
-			obj->Draw(Core::Application::Get().GetCurrentCommandBuffer());
+			DrawObject(obj.get());
 		}
 	}
+}
+
+void Editor::DrawObject(Core::Object* object)
+{
+	auto mesh = object->GetComponent<Core::Mesh>();
+	mesh->Draw(Core::Application::Get().GetCurrentCommandBuffer());
 }
 
 void Editor::RenderGizmos(Core::Application& app)
@@ -182,24 +167,25 @@ void Editor::RenderGizmos(Core::Application& app)
 
 	for (u32 i = start; i < end; i++)
 	{
-		m_Gizmos[i]->SetPosition(objPosition + m_Gizmos[i]->GetLocalOffset() * scaleFactor);
-		m_Gizmos[i]->SetScale(glm::vec3(scaleFactor));
+		auto& gizmo = m_Gizmos[i];
+		gizmo->SetPosition(objPosition + gizmo->GetLocalOffset() * scaleFactor);
+		gizmo->SetScale(glm::vec3(scaleFactor));
 
-		if (m_ActiveGizmo == m_Gizmos[i].get())
+		if (m_ActiveGizmo == gizmo.get())
 		{
-			glm::vec3 baseColor = m_Gizmos[i]->GetColor();
+			glm::vec3 baseColor = gizmo->GetColor();
 			pc.Color = baseColor + glm::vec3(0.3f);
 			pc.Color = glm::min(baseColor + glm::vec3(0.3f), glm::vec3(1.0f));
 		}
 		else
 		{
-			pc.Color = m_Gizmos[i]->GetColor();
+			pc.Color = gizmo->GetColor();
 		}
 
-		pc.Model = m_Gizmos[i]->GetModelMatrix();
+		pc.Model = gizmo->GetModelMatrix();
 
 		vkCmdPushConstants(app.GetCurrentCommandBuffer(), m_GizmoShader.PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GizmoPushConstants), &pc);
-		m_Gizmos[i]->Draw(app.GetCurrentCommandBuffer());
+		gizmo->GetComponent<Core::Mesh>()->Draw(app.GetCurrentCommandBuffer());
 	}
 }
 
@@ -214,14 +200,14 @@ void Editor::RenderSelectedObjectOutline(Core::Application& app)
 	vkCmdSetLineWidth(app.GetCurrentCommandBuffer(), 3.0f);
 
 	PushConstants(m_SelectedObject);
-	m_SelectedObject->Draw(app.GetCurrentCommandBuffer());
+	DrawObject(m_SelectedObject);
 
 	vkCmdBindPipeline(app.GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_OutlineFillShader.Pipeline);
 	vkCmdBindDescriptorSets(app.GetCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
 		m_OutlineFillShader.PipelineLayout, 0, 1, &m_OutlineFillShader.DescriptorSet, 0, nullptr);
 
 	PushConstants(m_SelectedObject);
-	m_SelectedObject->Draw(app.GetCurrentCommandBuffer());
+	DrawObject(m_SelectedObject);
 }
 
 void Editor::RenderDebugLines(Core::Application& app)
@@ -263,7 +249,7 @@ void Editor::PushConstants(Core::Object* obj)
 	Core::MaterialUBO matUBO;
 	if (obj->HasComponent<Core::Material>())
 	{
-		matUBO.Color = obj->GetComponent<Core::Material>()->Color;
+		matUBO.Color = obj->GetComponent<Core::Material>()->GetColor();
 	}
 	
 	objPC.Model = obj->GetComponent<Core::Transform>()->GetModelMatrix();

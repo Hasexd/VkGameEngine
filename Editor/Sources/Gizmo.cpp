@@ -1,7 +1,7 @@
 #include "Gizmo.h"
 
 
-Gizmo::Gizmo(Core::ECS& ecs, GizmoType type, GizmoAxis axis)
+Gizmo::Gizmo(Core::ECS& ecs, Core::AssetManager* assetManager, GizmoType type, GizmoAxis axis)
 	: Object(ecs, ""), m_Type(type), m_Axis(axis)
 {
 
@@ -10,22 +10,25 @@ Gizmo::Gizmo(Core::ECS& ecs, GizmoType type, GizmoAxis axis)
 	auto mesh = AddComponent<Core::Mesh>();
 	auto transform = GetComponent<Core::Transform>();
 
+	std::filesystem::path objPath = std::filesystem::path(PATH_TO_OBJS);
+
 	if (type == GizmoType::Translate)
 	{
-		*mesh = app.CreateMeshFromOBJ("TranslateGizmo.obj");
+		mesh = assetManager->Load<Core::Mesh>(objPath / "TranslateGizmo.obj");
 		SetupTranslationGizmo(transform);
-
 	}
 	else if (type == GizmoType::Rotate)
 	{
-		*mesh = app.CreateMeshFromOBJ("RotateGizmo.obj");
+		mesh = assetManager->Load<Core::Mesh>(objPath / "RotateGizmo.obj");
 		SetupRotationGizmo(transform);
 	}
 	else if (type == GizmoType::Scale)
 	{
-		*mesh = app.CreateMeshFromOBJ("ScaleGizmo.obj");
+		mesh = assetManager->Load<Core::Mesh>(objPath / "ScaleGizmo.obj");
 		SetupScaleGizmo(transform);
 	}
+
+	AddAssetComponent<Core::Mesh>(mesh->GetID());
 
 	if (m_Axis == GizmoAxis::X)
 	{
@@ -93,11 +96,6 @@ void Gizmo::SetupScaleGizmo(Core::Transform* transform)
 		transform->Rotation = glm::radians(glm::vec3(90.0f, 0.0f, 0.0f));
 		m_LocalOffset = glm::vec3(0.0f, 0.0f, 0.8f);
 	}
-}
-
-Gizmo::~Gizmo()
-{
-	GetComponent<Core::Mesh>()->Destroy(Core::Application::Get().GetVmaAllocator());
 }
 
 glm::mat4 Gizmo::GetModelMatrix() noexcept

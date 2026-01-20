@@ -5,6 +5,7 @@
 #include <vector>
 #include <ranges>
 #include <queue>
+#include <filesystem>
 
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
@@ -30,8 +31,7 @@ namespace Core
 		static f32 GetDeltaTime();
 		static Window& GetWindow();
 
-		static MeshBuffers CreateMeshBuffers(const std::vector<Vertex>& vertices, const std::vector<u32>& indices);
-		static Mesh CreateMeshFromOBJ(const std::string& objName);
+		static MeshBuffers CreateMeshBuffers(const std::vector<objl::Vertex>& vertices, const std::vector<u32>& indices);
 
 		i32 GetCursorState();
 		void SetCursorState(i32 state);

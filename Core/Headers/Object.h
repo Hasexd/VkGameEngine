@@ -2,7 +2,6 @@
 
 #include "ECS.h"
 #include "Transform.h"
-#include "Mesh.h"
 
 namespace Core
 {
@@ -17,6 +16,9 @@ namespace Core
 		template<std::derived_from<Component> T, typename... Args>
 		T* AddComponent(Args&&... args);
 
+		template<std::derived_from<Asset> T>
+		void AddAssetComponent(const UUID& assetId);
+
 		template<std::derived_from<Component> T>
 		bool HasComponent();
 
@@ -25,8 +27,6 @@ namespace Core
 
 		template<std::derived_from<Component> T>
 		[[nodiscard]] T* GetComponent();
-
-		void Draw(VkCommandBuffer cmd);
 
 		void SetVisible(bool isVisible) { m_IsVisible = isVisible; }
 		[[nodiscard]] bool IsVisible() const { return m_IsVisible; }
@@ -43,6 +43,12 @@ namespace Core
 	T* Object::AddComponent(Args&&... args)
 	{
 		return m_ECS.AddComponent<T>(m_ID, std::forward<Args>(args)...);
+	}
+
+	template<std::derived_from<Asset> T>
+	void Object::AddAssetComponent(const UUID& assetId)
+	{
+		m_ECS.AddAssetComponent<T>(m_ID, assetId);
 	}
 
 	template<std::derived_from<Component> T>

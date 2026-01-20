@@ -183,18 +183,8 @@ namespace Core
 		s_Instance->m_Renderer->SetBackgroundColor(color);
 	}
 
-	MeshBuffers Application::CreateMeshBuffers(const std::vector<Vertex>& vertices, const std::vector<u32>& indices)
+	MeshBuffers Application::CreateMeshBuffers(const std::vector<objl::Vertex>& vertices, const std::vector<u32>& indices)
 	{
 		return s_Instance->m_Renderer->CreateMeshBuffers(vertices, indices);
-	}
-
-	Mesh Application::CreateMeshFromOBJ(const std::string& objName)
-	{
-		objl::Loader loader;
-		std::filesystem::path objPath = std::filesystem::path(PATH_TO_OBJS) / objName;
-		loader.LoadFile(objPath.string());
-
-		MeshBuffers buffers = CreateMeshBuffers(loader.LoadedVertices, loader.LoadedIndices);
-		return Mesh(buffers);
 	}
 }

@@ -25,6 +25,7 @@
 #include "Ray.h"
 #include "Plane.h"
 #include "Gizmo.h"
+#include "AssetManager.h"
 
 class Editor : public Core::Layer
 {
@@ -43,6 +44,7 @@ public:
 	bool OnKeyReleased(Core::KeyReleasedEvent& event);
 	bool OnWindowResize(Core::WindowResizeEvent& event);
 
+	void DrawObject(Core::Object* object);
 	static void DrawDebugLine(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color, f32 lifetime, f32 thickness);
 
 	template<std::derived_from<Core::Object> T, typename... Args>
@@ -81,6 +83,7 @@ private:
 	void AxisRotationDragger(const glm::vec3& axis);
 	void AxisScaleDragger(const glm::vec3& axis);
 private:
+	std::unique_ptr<Core::AssetManager> m_AssetManager;
 	Core::ECS m_ECS;
 	Core::Camera m_Camera;
 

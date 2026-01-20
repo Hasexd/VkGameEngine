@@ -12,17 +12,20 @@
 #include "Log.h"
 #include "Component.h"
 #include "OBJ-Loader.h"
+#include "Application.h"
 
 namespace Core
 {
 	using Vertex = objl::Vertex;
 
-	class Mesh : public Component
+	class Mesh : public Asset
 	{
 	public:
 		Mesh() = default;
 		Mesh(const MeshBuffers& meshBuffers);
-		~Mesh() = default;
+		~Mesh();
+
+		void LoadFromFile(const std::filesystem::path& path);
 
 		void Destroy(VmaAllocator allocator);
 

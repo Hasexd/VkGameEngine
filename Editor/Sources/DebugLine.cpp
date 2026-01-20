@@ -65,7 +65,7 @@ void DebugLine::CreateBuffers(const glm::vec3& start, const glm::vec3& end)
 		std::memcpy(data, indices.data(), sizeof(u32) * indices.size());
 		vmaUnmapMemory(app.GetVmaAllocator(), stagingBuffer.Allocation);
 
-		Core::Application::Get().CopyBuffer(stagingBuffer.Buffer, s_IndexBuffer.Buffer, sizeof(u32) * indices.size());
+		app.CopyBuffer(stagingBuffer.Buffer, s_IndexBuffer.Buffer, sizeof(u32) * indices.size());
 		vmaDestroyBuffer(app.GetVmaAllocator(), stagingBuffer.Buffer, stagingBuffer.Allocation);
 	}
 }
