@@ -3,7 +3,6 @@
 Cube::Cube(Core::ECS& ecs, const std::string& name):
 	Core::Object(ecs, name)
 {
-	AddComponent<Core::Mesh>();
-	auto mesh = GetComponent<Core::Mesh>();  
+	auto mesh = AddComponent<Core::Mesh>();
 	*mesh = Core::Application::CreateMeshFromOBJ("Cube.obj");
 }

@@ -19,7 +19,7 @@ namespace Core
 		UUID CreateEntity();
 
 		template<std::derived_from<Component> T, typename... Args>
-		void AddComponent(const UUID& entity, Args&&... args);
+		T* AddComponent(const UUID& entity, Args&&... args);
 
 		template<std::derived_from<Component> T>
 		bool HasComponent(const UUID& entity);
@@ -35,23 +35,24 @@ namespace Core
  	};
 
 	template<std::derived_from<Component> T, typename... Args>
-	void ECS::AddComponent(const UUID& entity, Args&&... args)
+	T* ECS::AddComponent(const UUID& entity, Args&&... args)
 	{
 		auto it = m_Entities.find(entity);
 
 		if (it == m_Entities.end())
 		{
 			LOG_ERROR("Entity {} does not exist.", static_cast<std::string>(entity));
-			return;
+			return nullptr;
 		}
 
 		if (HasComponent<T>(entity))
 		{
 			LOG_ERROR("Component of this type already exists on entity: {}", static_cast<std::string>(entity));
-			return;
+			return nullptr;
 		}
 
-		it->second.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
+		Component* component = it->second.emplace_back(std::make_unique<T>(std::forward<Args>(args)...)).get();
+		return dynamic_cast<T*>(component);
 	}
 
 	template<std::derived_from<Component> T>

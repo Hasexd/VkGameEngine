@@ -15,7 +15,7 @@ namespace Core
 		virtual void OnUpdate(float deltaTime) {};
 
 		template<std::derived_from<Component> T, typename... Args>
-		void AddComponent(Args&&... args);
+		T* AddComponent(Args&&... args);
 
 		template<std::derived_from<Component> T>
 		bool HasComponent();
@@ -40,9 +40,9 @@ namespace Core
 	};
 
 	template<std::derived_from<Component> T, typename... Args>
-	void Object::AddComponent(Args&&... args)
+	T* Object::AddComponent(Args&&... args)
 	{
-		m_ECS.AddComponent<T>(m_ID, std::forward<Args>(args)...);
+		return m_ECS.AddComponent<T>(m_ID, std::forward<Args>(args)...);
 	}
 
 	template<std::derived_from<Component> T>

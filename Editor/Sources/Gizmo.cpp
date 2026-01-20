@@ -4,13 +4,10 @@
 Gizmo::Gizmo(Core::ECS& ecs, GizmoType type, GizmoAxis axis)
 	: Object(ecs, ""), m_Type(type), m_Axis(axis)
 {
-	//length of the cylinder in blender is 0.8
-
-	AddComponent<Core::Mesh>();
 
 	auto& app = Core::Application::Get();
 
-	auto mesh = GetComponent<Core::Mesh>();
+	auto mesh = AddComponent<Core::Mesh>();
 	auto transform = GetComponent<Core::Transform>();
 
 	if (type == GizmoType::Translate)

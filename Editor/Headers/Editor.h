@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_set>
 #include <numeric>
+#include <concepts>
 
 #include <GLFW/glfw3.h>
 
@@ -69,9 +70,6 @@ private:
 	bool RayTriangleIntersection(const Core::Ray& ray, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2, f32& outDistance);
 	Core::HitResult GizmoRaycast(const glm::vec3& start, const glm::vec3& direction, f32 maxDistance);
 
-	template<std::derived_from<Core::Object> T>
-	Core::HitResult RaycastInternal(const glm::vec3& start, const glm::vec3& direction, f32 maxDistance, const std::vector<std::unique_ptr<T>>& objects);
-
 	bool TestGizmoClick();
 	bool TestObjectClick();
 
@@ -122,66 +120,4 @@ T* Editor::AddObject(const std::string& name, Args&&... args)
 {
 	auto& ptr = m_Objects.emplace_back(std::make_unique<T>(m_ECS, name, std::forward<Args>(args)...));
 	return static_cast<T*>(ptr.get());
-}
-
-template<std::derived_from<Core::Object> T>
-Core::HitResult Editor::RaycastInternal(const glm::vec3& start, const glm::vec3& direction, f32 maxDistance, const std::vector<std::unique_ptr<T>>& objects)
-{
-	f32 closestDistance = std::numeric_limits<f32>::max();
-	Core::Object* closestObject = nullptr;
-
-	for (const auto& obj : objects)
-	{
-		if (!obj->HasComponent<Core::Mesh>())
-			continue;
-
-		auto transform = obj->GetComponent<Core::Transform>();
-
-		glm::mat4 invTransform = glm::inverse(transform->GetModelMatrix());
-		glm::vec3 localOrigin = glm::vec3(invTransform * glm::vec4(start, 1.0f));
-		glm::vec3 localDirection = glm::normalize(glm::vec3(invTransform * glm::vec4(direction, 0.0f)));
-
-		auto mesh = obj->GetComponent<Core::Mesh>();
-		const auto& vertices = mesh->GetVertices();
-		const auto& indices = mesh->GetIndices();
-
-		for (usize i = 0; i < indices.size(); i += 3)
-		{
-			if (indices[i] >= vertices.size() ||
-				indices[i + 1] >= vertices.size() ||
-				indices[i + 2] >= vertices.size())
-			{
-				continue;
-			}
-
-			glm::vec3 v0 = vertices[indices[i]].Position;
-			glm::vec3 v1 = vertices[indices[i + 1]].Position;
-			glm::vec3 v2 = vertices[indices[i + 2]].Position;
-
-			Core::Ray localRay = {};
-			localRay.Origin = localOrigin;
-			localRay.Direction = localDirection;
-
-			f32 distance;
-			if (RayTriangleIntersection(localRay, v0, v1, v2, distance))
-			{
-				glm::vec3 localIntersection = localOrigin + localDirection * distance;
-				glm::vec3 worldIntersection = glm::vec3(transform->GetModelMatrix() * glm::vec4(localIntersection, 1.0f));
-				f32 worldDistance = glm::length(worldIntersection - start);
-
-				if (worldDistance < closestDistance && worldDistance <= maxDistance)
-				{
-					closestDistance = worldDistance;
-					closestObject = obj.get();
-				}
-			}
-		}
-	}
-
-	Core::HitResult result = {};
-	result.HitObject = closestObject;
-	result.HitDistance = closestDistance;
-	result.Hit = (closestObject != nullptr);
-
-	return result;
 }

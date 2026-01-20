@@ -42,31 +42,25 @@ Editor::Editor()
 
 	auto obj = AddObject<Cube>("Cube 1");
 	obj->GetComponent<Core::Transform>()->Position = { 0.0f, 0.0f, 5.0f };
-	obj->AddComponent<Core::Material>();
-
-	auto material = obj->GetComponent<Core::Material>();
+	auto material = obj->AddComponent<Core::Material>();
 	material->Color = glm::vec3(0.3f, 0.2f, 0.6f);
 
 	auto obj2 = AddObject<Cube>("Cube 2");
 	obj2->GetComponent<Core::Transform>()->Position = { -5.0f, 0.0f, 5.0f };
-	obj2->AddComponent<Core::Material>();
-
-	material = obj2->GetComponent<Core::Material>();
+	material = obj2->AddComponent<Core::Material>();
 	material->Color = glm::vec3(0.4f, 0.7f, 0.2f);
 
 	auto obj3 = AddObject<Plane>("Floor");
 	obj3->GetComponent<Core::Transform>()->Position = { 0.0f, -2.0f, 0.0f };
 	obj3->GetComponent<Core::Transform>()->Scale = { 20.0f, 1.0f, 20.0f };
-	obj3->AddComponent<Core::Material>();
-	material = obj3->GetComponent<Core::Material>();
+	material = obj3->AddComponent<Core::Material>();
 	material->Color = glm::vec3(0.5f, 0.5f, 0.5f);
 
 	// uncomment for porsche
 	/*auto porsche = AddObject<Core::Object>("Porsche 911");
 	porsche->GetComponent<Core::Transform>()->Position = { 5.0f, 2.0f, 10.0f };
 	porsche->AddComponent<Core::Mesh>(Core::Application::CreateMeshFromOBJ("Porsche_911_GT2.obj"));
-	porsche->AddComponent<Core::Material>();
-	material = porsche->GetComponent<Core::Material>();
+	material = porsche->AddComponent<Core::Material>();
 	material->Color = glm::vec3(1.0f, 1.0f, 1.0f);*/
 
 	glm::vec2 framebufferSize = app.GetWindow().GetFramebufferSize();
@@ -997,6 +991,8 @@ void Editor::InitImGui()
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+	io.IniFilename = NULL;
+	io.LogFilename = NULL;
 
 	std::filesystem::path pathToImGuiIni = std::filesystem::path(PATH_TO_EDITOR) / "imgui.ini";
 	std::string pathStr = pathToImGuiIni.string();
@@ -1155,12 +1151,68 @@ Core::HitResult Editor::GizmoRaycast(const glm::vec3& start, const glm::vec3& di
 
 Core::HitResult Editor::Raycast(const glm::vec3& start, const glm::vec3& direction, f32 maxDistance)
 {
-	return RaycastInternal(start, direction, maxDistance, m_Objects);
+	f32 closestDistance = std::numeric_limits<f32>::max();
+	Core::Object* closestObject = nullptr;
+
+	for (const auto& obj : m_Objects)
+	{
+		if (!obj->HasComponent<Core::Mesh>())
+			continue;
+
+		auto transform = obj->GetComponent<Core::Transform>();
+
+		glm::mat4 invTransform = glm::inverse(transform->GetModelMatrix());
+		glm::vec3 localOrigin = glm::vec3(invTransform * glm::vec4(start, 1.0f));
+		glm::vec3 localDirection = glm::normalize(glm::vec3(invTransform * glm::vec4(direction, 0.0f)));
+
+		auto mesh = obj->GetComponent<Core::Mesh>();
+		const auto& vertices = mesh->GetVertices();
+		const auto& indices = mesh->GetIndices();
+
+		for (usize j = 0; j < indices.size(); j += 3)
+		{
+			if (indices[j] >= vertices.size() ||
+				indices[j + 1] >= vertices.size() ||
+				indices[j + 2] >= vertices.size())
+			{
+				continue;
+			}
+
+			glm::vec3 v0 = vertices[indices[j]].Position;
+			glm::vec3 v1 = vertices[indices[j + 1]].Position;
+			glm::vec3 v2 = vertices[indices[j + 2]].Position;
+
+			Core::Ray localRay = {};
+			localRay.Origin = localOrigin;
+			localRay.Direction = localDirection;
+
+			f32 distance;
+			if (RayTriangleIntersection(localRay, v0, v1, v2, distance))
+			{
+				glm::vec3 localIntersection = localOrigin + localDirection * distance;
+				glm::vec3 worldIntersection = glm::vec3(transform->GetModelMatrix() * glm::vec4(localIntersection, 1.0f));
+				f32 worldDistance = glm::length(worldIntersection - start);
+
+				if (worldDistance < closestDistance && worldDistance <= maxDistance)
+				{
+					closestDistance = worldDistance;
+					closestObject = obj.get();
+				}
+			}
+		}
+	}
+
+	Core::HitResult result = {};
+	result.HitObject = closestObject;
+	result.HitDistance = closestDistance;
+	result.Hit = (closestObject != nullptr);
+
+	return result;
 }
 
 bool Editor::RayTriangleIntersection(const Core::Ray& ray, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2, f32& outDistance)
 {
-	// https://en.wikipedia.org/wiki/Möller–Trumbore_intersection_algorithm
+	// https://en.wikipedia.org/wiki/Mï¿½llerï¿½Trumbore_intersection_algorithm
 
 	constexpr f32 epsilon = std::numeric_limits<f32>::epsilon();
 
