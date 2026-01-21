@@ -165,7 +165,7 @@ namespace Core
 	void Renderer::CreateBuffers()
 	{
 		m_VPBuffer = CreateBuffer(sizeof(VP), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-		m_MaterialsBuffer = CreateBuffer(sizeof(MaterialUBO) * 100, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+		m_MaterialsBuffer = CreateBuffer(sizeof(MaterialUBO) * 20, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 	}
 
 	void Renderer::CreateSwapchain()

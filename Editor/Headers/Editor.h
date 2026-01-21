@@ -113,7 +113,7 @@ private:
 	Core::Shader m_DebugLineShader;
 	Core::Shader m_GizmoShader;
 
-	usize m_MaxMaterials = 100;
+	usize m_MaxMaterials = 20;
 
 	static inline std::vector<std::unique_ptr<DebugLine>> m_DebugLines;
 

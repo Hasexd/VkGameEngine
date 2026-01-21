@@ -69,7 +69,7 @@ namespace Core
 		[[nodiscard]] VkSampleCountFlagBits GetMSAASamples() const { return m_MSAASamples; }
 		[[nodiscard]] VkPhysicalDeviceLimits GetPhysicalDeviceLimits() const { return m_PhysDeviceLimits; }
 
-
+		[[nodiscard]] Shader& GetGraphicsShader() { return m_GraphicsShader; }
 
 		Shader CreateShader(const VkRenderPass& renderPass, const std::vector<DescriptorBinding>& bindings,
 			const std::vector<VkPushConstantRange>& pushConstantRanges,

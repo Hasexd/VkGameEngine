@@ -90,6 +90,7 @@ namespace Core
 		[[nodiscard]] Buffer& GetVPBuffer() { return m_Renderer->GetVPBuffer(); }
 		[[nodiscard]] Buffer& GetMaterialsBuffer() { return m_Renderer->GetMaterialsBuffer(); }
 
+		[[nodiscard]] Shader& GetGraphicsShader() { return m_Renderer->GetGraphicsShader(); }
 
 		void UpdateDescriptorSets(const Shader& shader) { m_Renderer->UpdateDescriptorSets(shader); }
 

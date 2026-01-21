@@ -272,9 +272,15 @@ void Editor::UpdateMaterialsBuffer()
 	if (m_Materials.size() > m_MaxMaterials)
 	{
 		m_MaxMaterials = m_Materials.size() * 2;
-		vmaDestroyBuffer(Core::Application::Get().GetVmaAllocator(), materialsBuffer.Buffer, materialsBuffer.Allocation);
+		vmaDestroyBuffer(app.GetVmaAllocator(), materialsBuffer.Buffer, materialsBuffer.Allocation);
+
 		materialsBuffer = app.CreateBuffer(sizeof(Core::MaterialUBO) * m_MaxMaterials,
 			VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+		Core::Shader& graphicsShader = app.GetGraphicsShader();
+		graphicsShader.Bindings[1] = Core::DescriptorBinding(materialsBuffer, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+
+		app.UpdateDescriptorSets(app.GetGraphicsShader());
 	}
 
 	for (const auto& material : m_Materials)
@@ -1034,6 +1040,7 @@ void Editor::InitImGui()
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 	io.IniFilename = NULL;
 	io.LogFilename = NULL;
 
@@ -1050,6 +1057,12 @@ void Editor::InitImGui()
 	style.FontScaleDpi = mainScale;
 	io.ConfigDpiScaleFonts = true;
 	io.ConfigDpiScaleViewports = true;
+
+	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+	{
+		style.WindowRounding = 0.0f;
+		style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+	}
 
 	ImGui_ImplGlfw_InitForVulkan(Core::Application::GetWindow().GetHandle(), true);
 
@@ -1112,6 +1125,12 @@ void Editor::RenderImGui()
 
 	ImGui::Render();
 	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), Core::Application::Get().GetCurrentCommandBuffer());
+
+	if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+	{
+		ImGui::UpdatePlatformWindows();
+		ImGui::RenderPlatformWindowsDefault();
+	}
 }
 
 void Editor::DrawDebugLine(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color, f32 lifetime, f32 thickness)
