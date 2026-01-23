@@ -1123,6 +1123,10 @@ void Editor::RenderImGui()
 
 	ImGui::End();
 
+	ImGui::Begin("Render Times");
+	ImGui::Text("Render Thread: %.3f ms", Core::Application::Get().GetGPUTime(Core::TimestampType::RenderThread));
+	ImGui::End();
+
 	ImGui::Render();
 	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), Core::Application::Get().GetCurrentCommandBuffer());
 

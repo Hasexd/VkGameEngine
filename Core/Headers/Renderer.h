@@ -8,6 +8,7 @@
 #include <functional>
 #include <cstddef>
 #include <memory>
+#include <ranges>
 
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
@@ -21,10 +22,22 @@
 #include "Object.h"
 #include "Camera.h"
 
+
 constexpr usize MAX_FRAMES_IN_FLIGHT = 2;
 
 namespace Core
 {
+	enum class TimestampType
+	{
+		RenderThread
+	};
+
+	struct Timestamp
+	{
+		u64 Start, End;
+		VkQueryPool QueryPool;
+	};
+
 	class Renderer
 	{
 	public:
@@ -71,6 +84,9 @@ namespace Core
 
 		[[nodiscard]] Shader& GetGraphicsShader() { return m_GraphicsShader; }
 
+		[[nodiscard]] const f32 GetGPUTime(const TimestampType& type) const
+		{ return static_cast<f32>(m_Timestamps.at(type).End - m_Timestamps.at(type).Start) * m_PhysDeviceLimits.timestampPeriod / 1000000.0f; }
+
 		Shader CreateShader(const VkRenderPass& renderPass, const std::vector<DescriptorBinding>& bindings,
 			const std::vector<VkPushConstantRange>& pushConstantRanges,
 			VkVertexInputBindingDescription* vtxInputBindingDesc,
@@ -91,8 +107,6 @@ namespace Core
 
 		Buffer CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-
-
 
 	private:
 		void InitCoreData();
@@ -159,6 +173,8 @@ namespace Core
 		VkPhysicalDeviceProperties m_PhysDeviceProperties;
 		VkPhysicalDeviceLimits m_PhysDeviceLimits;
 		VkSampleCountFlagBits m_MSAASamples = VK_SAMPLE_COUNT_4_BIT;
+
+		std::unordered_map<TimestampType, Timestamp> m_Timestamps;
 	};
 }
 

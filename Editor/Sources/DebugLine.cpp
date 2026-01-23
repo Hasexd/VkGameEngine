@@ -31,7 +31,7 @@ void DebugLine::CreateBuffers(const glm::vec3& start, const glm::vec3& end)
 {
 	auto& app = Core::Application::Get();
 
-	std::array<glm::vec3, 2> vertices = { start, end, };
+	std::array<glm::vec3, 2> vertices = { start, end };
 
 	Core::Buffer stagingBuffer = app.CreateBuffer(
 		sizeof(glm::vec3) * vertices.size(),

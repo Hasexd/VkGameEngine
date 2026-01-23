@@ -160,6 +160,15 @@ namespace Core
 		}
 
 		LOG_INFO("MSAA Samples: {}", static_cast<u32>(m_MSAASamples));
+
+		VkQueryPoolCreateInfo queryPoolInfo = {};
+		queryPoolInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
+		queryPoolInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
+		queryPoolInfo.queryCount = 2;
+
+		Timestamp& renderThreadTimestamp = m_Timestamps[TimestampType::RenderThread];
+
+		vkCreateQueryPool(m_CoreData.Device, &queryPoolInfo, nullptr, &renderThreadTimestamp.QueryPool);
 	}
 	
 	void Renderer::CreateBuffers()
@@ -1051,6 +1060,8 @@ namespace Core
 		VkCommandBufferBeginInfo beginInfo = {};
 		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		vkBeginCommandBuffer(m_CurrentCommandBuffer, &beginInfo);
+		vkCmdResetQueryPool(m_CurrentCommandBuffer, m_Timestamps[TimestampType::RenderThread].QueryPool, 0, 2);
+		vkCmdWriteTimestamp(m_CurrentCommandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, m_Timestamps[TimestampType::RenderThread].QueryPool, 0);
 
 		m_FrameInProgress = true;
 	}
@@ -1062,6 +1073,9 @@ namespace Core
 			LOG_WARN("EndFrame called without frame in progress.");
 			return;
 		}
+		Timestamp& timestamp = m_Timestamps[TimestampType::RenderThread];
+
+		vkCmdWriteTimestamp(m_CurrentCommandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, timestamp.QueryPool, 1);
 
 		vkEndCommandBuffer(m_CurrentCommandBuffer);
 
@@ -1082,6 +1096,8 @@ namespace Core
 
 		vkResetFences(m_CoreData.Device, 1, &m_RenderData.InFlightFences[m_RenderData.CurrentFrame]);
 		vkQueueSubmit(m_RenderData.GraphicsQueue, 1, &submitInfo, m_RenderData.InFlightFences[m_RenderData.CurrentFrame]);
+
+		vkGetQueryPoolResults(m_CoreData.Device, timestamp.QueryPool, 0, 2, sizeof(u64) * 2, &timestamp.Start, sizeof(u64), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
 
 		VkPresentInfoKHR presentInfo = {};
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -1365,6 +1381,13 @@ namespace Core
 	void Renderer::Cleanup()
 	{
 		vkDeviceWaitIdle(m_CoreData.Device);
+
+		for (auto& timestamp : m_Timestamps | std::ranges::views::values)
+		{
+			vkDestroyQueryPool(m_CoreData.Device, timestamp.QueryPool, nullptr);
+		}
+
+		m_Timestamps.clear();
 
 		for (usize i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
 		{

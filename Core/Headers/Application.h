@@ -92,6 +92,8 @@ namespace Core
 
 		[[nodiscard]] Shader& GetGraphicsShader() { return m_Renderer->GetGraphicsShader(); }
 
+		[[nodiscard]] const f32 GetGPUTime(const TimestampType& type) const { return m_Renderer->GetGPUTime(type); }
+
 		void UpdateDescriptorSets(const Shader& shader) { m_Renderer->UpdateDescriptorSets(shader); }
 
 		Buffer CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage) { return m_Renderer->CreateBuffer(size, usage, memoryUsage); };
