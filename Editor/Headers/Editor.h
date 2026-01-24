@@ -6,6 +6,9 @@
 #include <numeric>
 #include <concepts>
 
+//required to include before glfw
+#include "PortableFileDialogs.h"
+
 #include <GLFW/glfw3.h>
 
 #include <imgui_impl_vulkan.h>
@@ -26,6 +29,8 @@
 #include "Plane.h"
 #include "Gizmo.h"
 #include "AssetManager.h"
+#include "Project.h"
+
 
 class Editor : public Core::Layer
 {
@@ -84,6 +89,8 @@ private:
 	void AxisTranslationDragger(const glm::vec3& axis, glm::vec3& point);
 	void AxisRotationDragger(const glm::vec3& axis);
 	void AxisScaleDragger(const glm::vec3& axis);
+
+	void LoadProjectContent();
 private:
 	std::unique_ptr<Core::AssetManager> m_AssetManager;
 	Core::ECS m_ECS;
@@ -121,6 +128,8 @@ private:
 	static inline f32 s_MaxLineWidth = 1.0f;
 
 	bool m_WireframeMode = false;
+
+	std::unique_ptr<Project> m_CurrentProject = nullptr;
 };
 
 template<std::derived_from<Core::Object> T, typename... Args>

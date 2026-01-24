@@ -9,4 +9,9 @@ namespace Core
 	{
 		AddComponent<Transform>();
 	}
+
+	std::vector<Core::Asset*> Object::GetAllAssets()
+	{
+		return m_ECS.GetAllEntityAssets(m_ID);
+	}
 }

@@ -28,7 +28,7 @@ Gizmo::Gizmo(Core::ECS& ecs, Core::AssetManager* assetManager, GizmoType type, G
 		SetupScaleGizmo(transform);
 	}
 
-	AddAssetComponent<Core::Mesh>(mesh->GetID());
+	AddComponent<Core::Mesh>(mesh->GetID());
 
 	if (m_Axis == GizmoAxis::X)
 	{

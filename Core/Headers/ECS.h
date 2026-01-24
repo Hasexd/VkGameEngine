@@ -25,7 +25,7 @@ namespace Core
 		T* AddComponent(const UUID& entity, Args&&... args);
 
 		template<std::derived_from<Asset> T>
-		void AddAssetComponent(const UUID& entity, const UUID& assetId);
+		void AddComponent(const UUID& entity, const UUID& assetId);
 
 		template<std::derived_from<Component> T>
 		bool HasComponent(const UUID& entity);
@@ -36,6 +36,7 @@ namespace Core
 		template<std::derived_from<Component> T>
 		T* GetComponent(const UUID& entity);
 
+		std::vector<Asset*> GetAllEntityAssets(const UUID& entity);
 	private:
 		std::unordered_map<UUID, std::vector<std::unique_ptr<Component>>> m_EntityComponentMap;
 		std::unordered_map<UUID, std::unordered_map<std::type_index, UUID>> m_EntityAssetMap;
@@ -64,7 +65,7 @@ namespace Core
 	}
 
 	template<std::derived_from<Asset> T>
-	void ECS::AddAssetComponent(const UUID& entity, const UUID& assetId)
+	void ECS::AddComponent(const UUID& entity, const UUID& assetId)
 	{
 		auto it = m_EntityAssetMap.find(entity);
 
@@ -145,4 +146,6 @@ namespace Core
 
 		return nullptr;
 	}
+
+	
 }

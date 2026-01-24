@@ -1,5 +1,6 @@
 #include "Editor.h"
 
+
 namespace
 {
 	void CheckVkResult(VkResult err)
@@ -41,41 +42,36 @@ Editor::Editor():
 	CreateDebugLinePipeline();
 	CreateGizmoPipeline();
 
-	std::filesystem::path pathToMtls = std::filesystem::path(PATH_TO_MTLS);
-
-	auto obj = AddObject<Cube>("Cube 1", m_AssetManager.get());
-	obj->GetComponent<Core::Transform>()->Position = { 0.0f, 0.0f, 5.0f };
-
-	auto obj2 = AddObject<Cube>("Cube 2", m_AssetManager.get());
-	obj2->GetComponent<Core::Transform>()->Position = { -5.0f, 0.0f, 5.0f };
-
-	auto obj3 = AddObject<Plane>("Floor", m_AssetManager.get());
-	obj3->GetComponent<Core::Transform>()->Position = { 0.0f, -2.0f, 0.0f };
-	obj3->GetComponent<Core::Transform>()->Scale = { 20.0f, 1.0f, 20.0f };
-
-	auto goldMaterial = m_AssetManager->Load<Core::Material>(pathToMtls / "Gold.mtl");
-	obj->AddAssetComponent<Core::Material>(goldMaterial->GetID());
-
-	auto crystalMaterial = m_AssetManager->Load<Core::Material>(pathToMtls / "Crystal.mtl");
-	obj2->AddAssetComponent<Core::Material>(crystalMaterial->GetID());
-
-	auto NeonPinkMaterial = m_AssetManager->Load<Core::Material>(pathToMtls / "NeonPink.mtl");
-	obj3->AddAssetComponent<Core::Material>(NeonPinkMaterial->GetID());
-
-
 	// uncomment for porsche
 	/*auto porsche = AddObject<Core::Object>("Porsche 911");
 	porsche->GetComponent<Core::Transform>()->Position = { 5.0f, 2.0f, 10.0f };
-	porsche->AddComponent<Core::Mesh>(Core::Application::CreateMeshFromOBJ("Porsche_911_GT2.obj"));
-	material = porsche->AddComponent<Core::Material>();
-	material->Color = glm::vec3(1.0f, 1.0f, 1.0f);*/
+	porsche->AddComponent<Core::Mesh>(m_AssetManager->Load<Core::Mesh>(std::filesystem::path(PATH_TO_OBJS) / "Porsche_911_GT2.obj")->GetID());*/
 
 	glm::vec2 framebufferSize = app.GetWindow().GetFramebufferSize();
 	m_Camera.AspectRatio = static_cast<f32>(framebufferSize.x) / static_cast<f32>(framebufferSize.y);
+
+	auto openExistingProject = pfd::message("Opening an existing project", "Do you want to open an existing project?", pfd::choice::yes_no, pfd::icon::question);
+
+	if (openExistingProject.result() == pfd::button::yes)
+	{
+		auto projectFileDialog = pfd::open_file("Open Project", "", {"Project Files", "*.vkproj"}, pfd::opt::none);
+		if (!projectFileDialog.result().empty())
+		{
+			std::filesystem::path projectPath = projectFileDialog.result()[0];
+			m_CurrentProject.reset(std::move(Project::Load(projectPath)));
+
+			LoadProjectContent();
+
+			LOG_INFO("Loaded project: {}", projectPath.string());
+		}
+	}
 }
 
 Editor::~Editor()
 {
+	if(m_CurrentProject)
+		m_CurrentProject->Save(m_Objects, m_AssetManager.get());
+
 	auto& app = Core::Application::Get();
 
 	std::filesystem::path pathToImGuiIni = std::filesystem::path(PATH_TO_EDITOR) / "imgui.ini";
@@ -1086,7 +1082,7 @@ void Editor::InitImGui()
 	initInfo.Allocator = nullptr;
 	initInfo.CheckVkResultFn = CheckVkResult;
 
-	// dynamic rendering
+	// dynamic rendering setup
 	auto swapchainRenderingInfo = app.GetSwapchainRenderingInfo();
 	initInfo.UseDynamicRendering = true;
 	initInfo.PipelineInfoMain.PipelineRenderingCreateInfo = swapchainRenderingInfo;
@@ -1319,4 +1315,57 @@ bool Editor::RayTriangleIntersection(const Core::Ray& ray, const glm::vec3& v0, 
 	}
 
 	return false;
+}
+
+void Editor::LoadProjectContent()
+{
+	std::fstream contentFile(m_CurrentProject->GetPath() / ".Content", std::ios::in | std::ios::binary);
+
+	u32 objectCount = 0;
+	contentFile.read(reinterpret_cast<char*>(&objectCount), sizeof(u32));
+
+	Core::Object* newObject = nullptr;
+
+	u32 nameLength = 0, assetCount = 0, assetPathLength = 0;
+	std::string assetExtension;
+	Core::Transform transform;
+
+	for (u32 i = 0; i < objectCount; i++)
+	{
+		contentFile.read(reinterpret_cast<char*>(&nameLength), sizeof(u32));
+
+		std::string name(nameLength, '\0');
+		contentFile.read(reinterpret_cast<char*>(&name[0]), nameLength);
+
+		newObject = new Core::Object(m_ECS, name);
+		Core::Transform* objTransform = newObject->GetComponent<Core::Transform>();
+
+		contentFile.read(reinterpret_cast<char*>(&transform.Position), sizeof(glm::vec3));
+		contentFile.read(reinterpret_cast<char*>(&transform.Rotation), sizeof(glm::vec3));
+		contentFile.read(reinterpret_cast<char*>(&transform.Scale), sizeof(glm::vec3));
+
+		objTransform->Position = transform.Position;
+		objTransform->Rotation = transform.Rotation;
+		objTransform->Scale = transform.Scale;
+
+		contentFile.read(reinterpret_cast<char*>(&assetCount), sizeof(u32));
+
+		for (u32 j = 0; j < assetCount; j++)
+		{
+			contentFile.read(reinterpret_cast<char*>(&assetPathLength), sizeof(u32));
+			std::string assetPath(assetPathLength, '\0');
+			contentFile.read(reinterpret_cast<char*>(&assetPath[0]), assetPathLength);
+
+			assetExtension = std::filesystem::path(assetPath).extension().string();
+
+			if(assetExtension == ".obj")
+				newObject->AddComponent<Core::Mesh>(m_AssetManager->Load<Core::Mesh>(assetPath)->GetID());
+			else if (assetExtension == ".mtl")
+				newObject->AddComponent<Core::Material>(m_AssetManager->Load<Core::Material>(assetPath)->GetID());
+		}
+
+		m_Objects.push_back(std::unique_ptr<Core::Object>(newObject));
+	}
+
+	contentFile.close();
 }

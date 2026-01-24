@@ -24,6 +24,11 @@ namespace Core
 
 		template<std::derived_from<Asset> T>
 		std::vector<T*> GetAll();
+
+		Asset* GetAssetByID(const UUID& id);
+		std::filesystem::path GetAssetPathByID(const UUID& id);
+
+		[[nodiscard]] const std::unordered_map<std::filesystem::path, std::unique_ptr<Asset>>& GetAllAssets() const noexcept { return m_Assets; }
 	private:
 		std::unordered_map<std::filesystem::path, std::unique_ptr<Asset>> m_Assets;
 	};

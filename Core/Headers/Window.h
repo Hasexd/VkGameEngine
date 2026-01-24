@@ -32,6 +32,7 @@ namespace Core
 		bool ShouldClose() const;
 
 		GLFWwindow* GetHandle() const { return m_Handle.get(); }
+		void SetTitle(const std::string& title);
 
 	private:
 		std::string m_Title;

@@ -17,7 +17,7 @@ namespace Core
 		T* AddComponent(Args&&... args);
 
 		template<std::derived_from<Asset> T>
-		void AddAssetComponent(const UUID& assetId);
+		void AddComponent(const UUID& assetId);
 
 		template<std::derived_from<Component> T>
 		bool HasComponent();
@@ -27,6 +27,8 @@ namespace Core
 
 		template<std::derived_from<Component> T>
 		[[nodiscard]] T* GetComponent();
+
+		std::vector<Core::Asset*> GetAllAssets();
 
 		void SetVisible(bool isVisible) { m_IsVisible = isVisible; }
 		[[nodiscard]] bool IsVisible() const { return m_IsVisible; }
@@ -46,9 +48,9 @@ namespace Core
 	}
 
 	template<std::derived_from<Asset> T>
-	void Object::AddAssetComponent(const UUID& assetId)
+	void Object::AddComponent(const UUID& assetId)
 	{
-		m_ECS.AddAssetComponent<T>(m_ID, assetId);
+		m_ECS.AddComponent<T>(m_ID, assetId);
 	}
 
 	template<std::derived_from<Component> T>

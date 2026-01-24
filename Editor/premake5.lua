@@ -23,7 +23,6 @@ project "Editor"
         "PATH_TO_SHADERS=\"" .. shaderPath .. "\"",
         "PATH_TO_EDITOR=\"" .. rootPath .. "/Editor" .. "\"",
         "PATH_TO_OBJS=\"" .. rootPath .. "/Editor/Objs" .. "\"",
-        "PATH_TO_MTLS=\"" .. rootPath .. "/Editor/Mtls" .. "\"",
     }
 
     links {

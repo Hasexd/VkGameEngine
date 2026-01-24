@@ -136,4 +136,9 @@ namespace Core
 	{
 		return glfwWindowShouldClose(GetHandle()) != 0;
 	}
+
+	void Window::SetTitle(const std::string& title)
+	{
+		glfwSetWindowTitle(GetHandle(), title.c_str());
+	}
 }

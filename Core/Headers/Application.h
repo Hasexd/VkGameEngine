@@ -100,6 +100,8 @@ namespace Core
 		Buffer CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage) { return m_Renderer->CreateBuffer(size, usage, memoryUsage); };
 		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) { m_Renderer->CopyBuffer(srcBuffer, dstBuffer, size); };
 
+		static void SetWindowTitle(const std::string& title) { s_Instance->SetWindowTitle(title); };
+
 	private:
 		static inline Application* s_Instance = nullptr;
 

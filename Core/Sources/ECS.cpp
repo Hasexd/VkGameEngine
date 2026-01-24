@@ -10,4 +10,22 @@ namespace Core
 
 		return id;
 	}
+
+	std::vector<Asset*> ECS::GetAllEntityAssets(const UUID& entity)
+	{
+		std::vector<Asset*> assets;
+		auto it = m_EntityAssetMap.find(entity);
+
+		if (it == m_EntityAssetMap.end())
+		{
+			LOG_ERROR("Entity {} does not exist.", static_cast<std::string>(entity));
+			return assets;
+		}
+
+		for (const auto& [typeIdx, assetId] : it->second)
+		{
+			assets.push_back(m_AssetManager->GetAssetByID(assetId));
+		}
+		return assets;
+	}
 }
