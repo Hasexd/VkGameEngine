@@ -64,15 +64,13 @@ namespace Core
 		[[nodiscard]] u32 GetQueueFamily() const { return m_Renderer->GetQueueFamily(); };
 		[[nodiscard]] VkQueue GetGraphicsQueue() const { return m_Renderer->GetGraphicsQueue(); }
 		[[nodiscard]] u32 GetSwapchainImageCount() const { return m_Renderer->GetSwapchainImageCount(); }
-		[[nodiscard]] VkRenderPass GetRenderPass() const { return m_Renderer->GetRenderPass(); }
-		[[nodiscard]] VkRenderPass GetRenderTextureRenderPass() const { return m_Renderer->GetRenderTextureRenderPass(); }
 		[[nodiscard]] VkSampler GetRenderTextureSampler() const { return m_Renderer->GetRenderTextureSampler(); }
 		[[nodiscard]] VkImageView GetRenderTextureImageView() const { return m_Renderer->GetRenderTextureImageView(); }
 		[[nodiscard]] VmaAllocator GetVmaAllocator() const { return m_Renderer->GetVmaAllocator(); }
 		[[nodiscard]] VkSampleCountFlagBits GetMSAASamples() const { return m_Renderer->GetMSAASamples(); }
 		[[nodiscard]] VkPhysicalDeviceLimits GetPhysicalDeviceLimits() const { return m_Renderer->GetPhysicalDeviceLimits(); }
 
-		[[nodiscard]] Shader CreateShader(const VkRenderPass& renderPass, const std::vector<DescriptorBinding>& bindings,
+		[[nodiscard]] Shader CreateShader(VkPipelineRenderingCreateInfoKHR* renderingInfo, const std::vector<DescriptorBinding>& bindings,
 			const std::vector<VkPushConstantRange>& pushConstantRanges,
 			VkVertexInputBindingDescription* vtxInputBindingDesc,
 			const std::vector<VkVertexInputAttributeDescription>& vtxInputAttrDesc,
@@ -84,7 +82,7 @@ namespace Core
 			VkCullModeFlagBits cullMode,
 			VkPolygonMode polygonMode,
 			VkPrimitiveTopology topology,
-			const std::filesystem::path& vert, const std::filesystem::path& frag) const { return m_Renderer->CreateShader(renderPass, bindings, pushConstantRanges, vtxInputBindingDesc, vtxInputAttrDesc,
+			const std::filesystem::path& vert, const std::filesystem::path& frag) const { return m_Renderer->CreateShader(renderingInfo, bindings, pushConstantRanges, vtxInputBindingDesc, vtxInputAttrDesc,
 				viewport, scissor, depthStencilInfo, dynamicStates, multisampleInfo, cullMode, polygonMode, topology, vert, frag); }
 
 		[[nodiscard]] Buffer& GetVPBuffer() { return m_Renderer->GetVPBuffer(); }
@@ -93,6 +91,9 @@ namespace Core
 		[[nodiscard]] Shader& GetGraphicsShader() { return m_Renderer->GetGraphicsShader(); }
 
 		[[nodiscard]] const f32 GetGPUTime(const TimestampType& type) const { return m_Renderer->GetGPUTime(type); }
+
+		[[nodiscard]] VkPipelineRenderingCreateInfoKHR GetGraphicsRenderingInfo() const { return m_Renderer->GetGraphicsRenderingInfo(); };
+		[[nodiscard]] VkPipelineRenderingCreateInfoKHR GetSwapchainRenderingInfo() const { return m_Renderer->GetSwapchainRenderingInfo(); };
 
 		void UpdateDescriptorSets(const Shader& shader) { m_Renderer->UpdateDescriptorSets(shader); }
 

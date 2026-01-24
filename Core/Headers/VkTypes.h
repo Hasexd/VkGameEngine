@@ -29,9 +29,6 @@ namespace Core
 
 		std::vector<VkImage> SwapchainImages;
 		std::vector<VkImageView> SwapchainImageViews;
-		std::vector<VkFramebuffer> Framebuffers;
-
-		VkRenderPass RenderPass;
 
 		VkCommandPool CommandPool;
 		std::vector<VkCommandBuffer> CommandBuffers;

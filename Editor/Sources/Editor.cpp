@@ -830,8 +830,10 @@ void Editor::CreateOutlinePipeline()
 	multisampling.sampleShadingEnable = VK_FALSE;
 	multisampling.rasterizationSamples = app.GetMSAASamples();
 
+	VkPipelineRenderingCreateInfoKHR renderingInfo = app.GetGraphicsRenderingInfo();
+
 	m_OutlineShader = app.CreateShader(
-		app.GetRenderTextureRenderPass(),
+		&renderingInfo,
 		bindings,
 		{ outlinePcRange },
 		&bindingDescription,
@@ -859,7 +861,7 @@ void Editor::CreateOutlinePipeline()
 	depthStencilFill.stencilTestEnable = VK_FALSE;
 
 	m_OutlineFillShader = app.CreateShader(
-		app.GetRenderTextureRenderPass(),
+		&renderingInfo,
 		bindings,
 		{ outlinePcRange },
 		&bindingDescription,
@@ -941,7 +943,8 @@ void Editor::CreateDebugLinePipeline()
 	auto vert = m_ShaderDirectory / "Compiled" / "debug_line.vert.spv";
 	auto frag = m_ShaderDirectory / "Compiled" / "debug_line.frag.spv";
 
-	m_DebugLineShader = app.CreateShader(app.GetRenderTextureRenderPass(), bindings, { debugLinePushConstant },
+	auto renderingInfo = app.GetGraphicsRenderingInfo();
+	m_DebugLineShader = app.CreateShader(&renderingInfo, bindings, { debugLinePushConstant },
 		&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, dynamicStates, &multisampling,
 		VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, VK_PRIMITIVE_TOPOLOGY_LINE_LIST, vert, frag);
 
@@ -1009,7 +1012,9 @@ void Editor::CreateGizmoPipeline()
 	auto vert = m_ShaderDirectory / "Compiled" / "gizmo.vert.spv";
 	auto frag = m_ShaderDirectory / "Compiled" / "gizmo.frag.spv";
 
-	m_GizmoShader = app.CreateShader(app.GetRenderTextureRenderPass(), bindings, { gizmoPushConstants },
+	auto renderingInfo = app.GetGraphicsRenderingInfo();
+
+	m_GizmoShader = app.CreateShader(&renderingInfo, bindings, { gizmoPushConstants },
 		&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, dynamicStates, &multisampling,
 		VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag);
 
@@ -1079,10 +1084,13 @@ void Editor::InitImGui()
 	initInfo.MinImageCount = app.GetSwapchainImageCount();
 	initInfo.ImageCount = app.GetSwapchainImageCount();
 	initInfo.Allocator = nullptr;
-	initInfo.PipelineInfoMain.RenderPass = app.GetRenderPass();
-	initInfo.PipelineInfoMain.Subpass = 0;
-	initInfo.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 	initInfo.CheckVkResultFn = CheckVkResult;
+
+	// dynamic rendering
+	auto swapchainRenderingInfo = app.GetSwapchainRenderingInfo();
+	initInfo.UseDynamicRendering = true;
+	initInfo.PipelineInfoMain.PipelineRenderingCreateInfo = swapchainRenderingInfo;
+	initInfo.PipelineInfoForViewports.PipelineRenderingCreateInfo = swapchainRenderingInfo;
 
 	ImGui_ImplVulkan_Init(&initInfo);
 }
@@ -1090,7 +1098,6 @@ void Editor::InitImGui()
 void Editor::RenderImGui()
 {
 	ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
-
 
 	ImGui::SetNextWindowBgAlpha(1.0f);
 	ImGui::Begin("Object information");

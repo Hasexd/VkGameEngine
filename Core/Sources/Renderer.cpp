@@ -64,29 +64,32 @@ namespace Core
 		m_Window = window;
 		InitCoreData();
 		SetPhysDevicePropertiesAndLimits();
+		CreateImmediateCommandResources();
 		CreateBuffers();
 		CreateSwapchain();
 		GetQueues();
 		CreateDepthResources();
-		CreateGraphicsRP();
-		CreateSwapchainRP();
 		CreateRenderTextures();
 		CreateGP();
 		CreateBlitPipeline();
-		CreateFramebuffers();
 		CreateCommandPool();
 		CreateCommandBuffers();
-		CreateImmediateCommandResources();
 		CreateSyncObjects();
-
-		TransitionImageLayout(m_RenderTextureResolved.Image, m_RenderTexture.Format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	}
 
 	void Renderer::InitCoreData()
 	{
+		bool requestValidationLayers = false;
+
+#ifdef DEBUG
+		requestValidationLayers = true;
+#endif
+
+		LOG_DEBUG("{}", requestValidationLayers);
+
 		vkb::InstanceBuilder builder;
 		auto instRet = builder
-			.request_validation_layers()
+			.request_validation_layers(requestValidationLayers)
 			.use_default_debug_messenger()
 			.require_api_version(1, 3, 2)
 			.build();
@@ -186,6 +189,16 @@ namespace Core
 
 		vkb::destroy_swapchain(m_CoreData.Swapchain);
 		m_CoreData.Swapchain = swapchain;
+
+		m_RenderData.SwapchainImages = m_CoreData.Swapchain.get_images().value();
+		auto swapchainImageViews = m_CoreData.Swapchain.get_image_views().value();
+
+		m_RenderData.SwapchainImageViews.clear();
+		m_RenderData.SwapchainImageViews.reserve(swapchainImageViews.size());
+		for (auto view : swapchainImageViews)
+		{
+			m_RenderData.SwapchainImageViews.push_back(view);
+		}
 	}
 
 	void Renderer::GetQueues()
@@ -222,134 +235,6 @@ namespace Core
 			VMA_MEMORY_USAGE_GPU_ONLY,
 			m_MSAASamples
 		);
-	}
-
-	void Renderer::CreateGraphicsRP()
-	{
-		std::array<VkAttachmentDescription, 3> attachments = {};
-
-		attachments[0].format = m_CoreData.Swapchain.image_format;
-		attachments[0].samples = m_MSAASamples;
-		attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		attachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-		attachments[1].format = m_CoreData.Swapchain.image_format;
-		attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
-		attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		attachments[1].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-		attachments[2].format = m_DepthImageMSAA.Format;
-		attachments[2].samples = m_MSAASamples;
-		attachments[2].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attachments[2].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachments[2].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attachments[2].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-		attachments[2].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		attachments[2].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-		VkAttachmentReference colorAttachmentRef = {};
-		colorAttachmentRef.attachment = 0;
-		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-		VkAttachmentReference resolveAttachmentRef = {};
-		resolveAttachmentRef.attachment = 1;
-		resolveAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-		VkAttachmentReference depthAttachmentRef = {};
-		depthAttachmentRef.attachment = 2;
-		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-		VkSubpassDescription subpass = {};
-		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-		subpass.colorAttachmentCount = 1;
-		subpass.pColorAttachments = &colorAttachmentRef;
-		subpass.pResolveAttachments = &resolveAttachmentRef;
-		subpass.pDepthStencilAttachment = &depthAttachmentRef;
-
-		VkSubpassDependency dependency = {};
-		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-		dependency.dstSubpass = 0;
-		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-		dependency.srcAccessMask = 0;
-		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-		VkRenderPassCreateInfo rpCreateInfo = {};
-		rpCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-		rpCreateInfo.attachmentCount = static_cast<u32>(attachments.size());
-		rpCreateInfo.pAttachments = attachments.data();
-		rpCreateInfo.subpassCount = 1;
-		rpCreateInfo.pSubpasses = &subpass;
-		rpCreateInfo.dependencyCount = 1;
-		rpCreateInfo.pDependencies = &dependency;
-
-		vkCreateRenderPass(m_CoreData.Device, &rpCreateInfo, nullptr, &m_RenderTextureRenderPass);
-		ASSERT(m_RenderTextureRenderPass);
-	}
-
-	void Renderer::CreateSwapchainRP()
-	{
-		std::array<VkAttachmentDescription, 2> attachments = {};
-
-		attachments[0].format = m_CoreData.Swapchain.image_format;
-		attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
-		attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-		attachments[1].format = m_DepthImage.Format;
-		attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
-		attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-		attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-		VkAttachmentReference colorAttachmentRef = {};
-		colorAttachmentRef.attachment = 0;
-		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-		VkAttachmentReference depthAttachmentRef = {};
-		depthAttachmentRef.attachment = 1;
-		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-		VkSubpassDescription subpass = {};
-		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-		subpass.colorAttachmentCount = 1;
-		subpass.pColorAttachments = &colorAttachmentRef;
-		subpass.pDepthStencilAttachment = &depthAttachmentRef;
-
-		VkSubpassDependency dependency = {};
-		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-		dependency.dstSubpass = 0;
-		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-		dependency.srcAccessMask = 0;
-		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-		VkRenderPassCreateInfo rpCreateInfo = {};
-		rpCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-		rpCreateInfo.attachmentCount = static_cast<u32>(attachments.size());
-		rpCreateInfo.pAttachments = attachments.data();
-		rpCreateInfo.subpassCount = 1;
-		rpCreateInfo.pSubpasses = &subpass;
-		rpCreateInfo.dependencyCount = 1;
-		rpCreateInfo.pDependencies = &dependency;
-
-		vkCreateRenderPass(m_CoreData.Device, &rpCreateInfo, nullptr, &m_RenderData.RenderPass);
-		ASSERT(m_RenderData.RenderPass);
 	}
 
 	void Renderer::CreateGP()
@@ -423,13 +308,15 @@ namespace Core
 		multisampling.sampleShadingEnable = VK_FALSE;
 		multisampling.rasterizationSamples = m_MSAASamples;
 
-		m_GraphicsShader = CreateShader(m_RenderTextureRenderPass, bindings, { objPushConstantRange },
+		auto graphicsRenderingInfo = GetGraphicsRenderingInfo();
+
+		m_GraphicsShader = CreateShader(&graphicsRenderingInfo, bindings, {objPushConstantRange},
 			&bindingDescription, attributeDescriptions, &viewport, &scissor, &depthStencil, dynamicStates, &multisampling, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag);
 
 		UpdateDescriptorSets(m_GraphicsShader);
 
 		m_WireframeShader = CreateShader(
-			m_RenderTextureRenderPass, bindings, { objPushConstantRange },
+			&graphicsRenderingInfo, bindings, {objPushConstantRange},
 			&bindingDescription, attributeDescriptions, &viewport, &scissor,
 			&depthStencil, dynamicStates, &multisampling, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag, geom
 		);
@@ -478,7 +365,9 @@ namespace Core
 		multisampling.sampleShadingEnable = VK_FALSE;
 		multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
-		m_BlitShader = CreateShader(m_RenderData.RenderPass, bindings, {}, nullptr, {}, &viewport, &scissor, &depthStencil, dynamicStates, &multisampling,
+		auto swapchainRenderingInfo = GetSwapchainRenderingInfo();
+
+		m_BlitShader = CreateShader(&swapchainRenderingInfo, bindings, {}, nullptr, {}, &viewport, &scissor, &depthStencil, dynamicStates, &multisampling,
 			VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vert, frag);
 		UpdateDescriptorSets(m_BlitShader);
 	}
@@ -521,53 +410,11 @@ namespace Core
 			VMA_MEMORY_USAGE_GPU_ONLY,
 			VK_SAMPLE_COUNT_1_BIT);
 
-		std::array attachments =
-		{
-			m_RenderTexture.View,
-			m_RenderTextureResolved.View,
-			m_DepthImageMSAA.View
-		};
+		TransitionImageLayout(m_RenderTexture.Image, m_RenderTexture.Format,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-		VkFramebufferCreateInfo framebufferInfo = {};
-		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebufferInfo.renderPass = m_RenderTextureRenderPass;
-		framebufferInfo.attachmentCount = attachments.size();
-		framebufferInfo.pAttachments = attachments.data();
-		framebufferInfo.width = m_CoreData.Swapchain.extent.width;
-		framebufferInfo.height = m_CoreData.Swapchain.extent.height;
-		framebufferInfo.layers = 1;
-
-		vkCreateFramebuffer(m_CoreData.Device, &framebufferInfo, nullptr, &m_RenderTextureFramebuffer);
-		ASSERT(m_RenderTextureFramebuffer);
-	}
-
-	void Renderer::CreateFramebuffers()
-	{
-		m_RenderData.SwapchainImages = m_CoreData.Swapchain.get_images().value();
-		m_RenderData.SwapchainImageViews = m_CoreData.Swapchain.get_image_views().value();
-
-		m_RenderData.Framebuffers.resize(m_RenderData.SwapchainImageViews.size());
-
-		for (usize i = 0; i < m_RenderData.SwapchainImageViews.size(); i++)
-		{
-			std::array attachments = 
-			{ 
-				m_RenderData.SwapchainImageViews[i],
-				m_DepthImage.View
-			};
-
-			VkFramebufferCreateInfo framebufferInfo = {};
-			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-			framebufferInfo.renderPass = m_RenderData.RenderPass;
-			framebufferInfo.attachmentCount = static_cast<u32>(attachments.size());
-			framebufferInfo.pAttachments = attachments.data();
-			framebufferInfo.width = m_CoreData.Swapchain.extent.width;
-			framebufferInfo.height = m_CoreData.Swapchain.extent.height;
-			framebufferInfo.layers = 1;
-
-			vkCreateFramebuffer(m_CoreData.Device, &framebufferInfo, nullptr, &m_RenderData.Framebuffers[i]);
-			ASSERT(m_RenderData.Framebuffers[i]);
-		}
+		TransitionImageLayout(m_RenderTextureResolved.Image, m_RenderTextureResolved.Format,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	}
 
 	void Renderer::CreateCommandPool()
@@ -583,7 +430,7 @@ namespace Core
 
 	void Renderer::CreateCommandBuffers()
 	{
-		m_RenderData.CommandBuffers.resize(m_RenderData.Framebuffers.size());
+		m_RenderData.CommandBuffers.resize(m_RenderData.SwapchainImageViews.size());
 
 		VkCommandBufferAllocateInfo allocInfo = {};
 		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -711,7 +558,7 @@ namespace Core
 		return image;
 	}
 
-	Shader Renderer::CreateShader(const VkRenderPass& renderPass, const std::vector<DescriptorBinding>& bindings,
+	Shader Renderer::CreateShader(VkPipelineRenderingCreateInfoKHR* renderingInfo, const std::vector<DescriptorBinding>& bindings,
 		const std::vector<VkPushConstantRange>& pushConstantRange,
 		VkVertexInputBindingDescription* vtxInputBindingDesc,
 		const std::vector<VkVertexInputAttributeDescription>& vtxInputAttrDesc,
@@ -892,8 +739,8 @@ namespace Core
 		pipelineInfo.pColorBlendState = &colorBlending;
 		pipelineInfo.pDynamicState = &dynamicInfo;
 		pipelineInfo.layout = shader.PipelineLayout;
-		pipelineInfo.renderPass = renderPass;
-		pipelineInfo.subpass = 0;
+		pipelineInfo.renderPass = VK_NULL_HANDLE;
+		pipelineInfo.pNext = renderingInfo;
 		pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
 		vkCreateGraphicsPipelines(m_CoreData.Device, nullptr, 1, &pipelineInfo, nullptr, &shader.Pipeline);
@@ -945,19 +792,12 @@ namespace Core
 	{
 		vkDeviceWaitIdle(m_CoreData.Device);
 
-		for (auto framebuffer : m_RenderData.Framebuffers)
-		{
-			vkDestroyFramebuffer(m_CoreData.Device, framebuffer, nullptr);
-		}
-		m_RenderData.Framebuffers.clear();
-
 		for (auto imageView : m_RenderData.SwapchainImageViews)
 		{
 			vkDestroyImageView(m_CoreData.Device, imageView, nullptr);
 		}
 		m_RenderData.SwapchainImageViews.clear();
 
-		vkDestroyFramebuffer(m_CoreData.Device, m_RenderTextureFramebuffer, nullptr);
 		vkDestroyImageView(m_CoreData.Device, m_RenderTexture.View, nullptr);
 		vkDestroyImageView(m_CoreData.Device, m_RenderTextureResolved.View, nullptr);
 		vmaDestroyImage(m_Allocator, m_RenderTexture.Image, m_RenderTexture.Allocation);
@@ -977,18 +817,12 @@ namespace Core
 
 		vkDestroyCommandPool(m_CoreData.Device, m_RenderData.CommandPool, nullptr);
 
-		vkDestroyRenderPass(m_CoreData.Device, m_RenderData.RenderPass, nullptr);
-		vkDestroyRenderPass(m_CoreData.Device, m_RenderTextureRenderPass, nullptr);
-
 		vkDestroySampler(m_CoreData.Device, m_RenderTextureSampler, nullptr);
 
 		CreateSwapchain();
 		GetQueues();
 		CreateDepthResources();
-		CreateGraphicsRP();
-		CreateSwapchainRP();
 		CreateRenderTextures();
-		CreateFramebuffers();
 		CreateCommandPool();
 		CreateCommandBuffers();
 
@@ -1132,23 +966,68 @@ namespace Core
 			return;
 		}
 
+		VkImageMemoryBarrier barrier = {};
+		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		barrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.image = m_RenderTextureResolved.Image;
+		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		barrier.subresourceRange.baseMipLevel = 0;
+		barrier.subresourceRange.levelCount = 1;
+		barrier.subresourceRange.baseArrayLayer = 0;
+		barrier.subresourceRange.layerCount = 1;
+
+		vkCmdPipelineBarrier(
+			m_CurrentCommandBuffer,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+			0,
+			0, nullptr,
+			0, nullptr,
+			1, &barrier
+		);
+
 		std::array<VkClearValue, 3> clearValues = {};
 		clearValues[0].color = { m_ClearColor };
-		clearValues[1].color = { m_ClearColor };
-		clearValues[2].depthStencil = { 1.0f, 0 };
+		clearValues[1].depthStencil = { 1.0f, 0 };
 
-		VkRenderPassBeginInfo rpInfo = {};
-		rpInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		rpInfo.renderPass = m_RenderTextureRenderPass;
-		rpInfo.framebuffer = m_RenderTextureFramebuffer;
-		rpInfo.renderArea.offset = { 0, 0 };
-		rpInfo.renderArea.extent = { m_CoreData.Swapchain.extent.width, m_CoreData.Swapchain.extent.height };
-		rpInfo.clearValueCount = static_cast<u32>(clearValues.size());
-		rpInfo.pClearValues = clearValues.data();
+		VkRenderingAttachmentInfoKHR colorAttachment = {};
+		colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+		colorAttachment.clearValue = clearValues[0];
+		colorAttachment.imageView = m_RenderTexture.View;
+		colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+		colorAttachment.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+		colorAttachment.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		colorAttachment.resolveImageView = m_RenderTextureResolved.View;
+
+		VkRenderingAttachmentInfoKHR depthAttachmentInfo = {};
+		depthAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+		depthAttachmentInfo.clearValue = clearValues[1];
+		depthAttachmentInfo.imageView = m_DepthImageMSAA.View;
+		depthAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		depthAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		depthAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+		VkRenderingInfoKHR renderingInfo = {};
+		renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
+		renderingInfo.renderArea = { {0, 0}, {m_CoreData.Swapchain.extent.width, m_CoreData.Swapchain.extent.height} };
+		renderingInfo.pColorAttachments = &colorAttachment;
+		renderingInfo.colorAttachmentCount = 1;
+		renderingInfo.pDepthAttachment = &depthAttachmentInfo;
+		renderingInfo.pStencilAttachment = &depthAttachmentInfo;
+		renderingInfo.layerCount = 1;
+
+		vkCmdBeginRendering(m_CurrentCommandBuffer, &renderingInfo);
 
 		Shader& activeShader = m_WireframeMode ? m_WireframeShader : m_GraphicsShader;
 
-		vkCmdBeginRenderPass(m_CurrentCommandBuffer, &rpInfo, VK_SUBPASS_CONTENTS_INLINE);
 		vkCmdBindPipeline(m_CurrentCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, activeShader.Pipeline);
 		vkCmdBindDescriptorSets(m_CurrentCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
 			activeShader.PipelineLayout, 0, 1, &activeShader.DescriptorSet, 0, nullptr);
@@ -1176,7 +1055,32 @@ namespace Core
 			return;
 		}
 
-		vkCmdEndRenderPass(m_CurrentCommandBuffer);
+		vkCmdEndRendering(m_CurrentCommandBuffer);
+
+		VkImageMemoryBarrier barrier = {};
+		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		barrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.image = m_RenderTextureResolved.Image;
+		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		barrier.subresourceRange.baseMipLevel = 0;
+		barrier.subresourceRange.levelCount = 1;
+		barrier.subresourceRange.baseArrayLayer = 0;
+		barrier.subresourceRange.layerCount = 1;
+
+		vkCmdPipelineBarrier(
+			m_CurrentCommandBuffer,
+			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			0,
+			0, nullptr,
+			0, nullptr,
+			1, &barrier
+		);
 	}
 
 	void Renderer::BeginRenderToSwapchain()
@@ -1187,20 +1091,61 @@ namespace Core
 			return;
 		}
 
+		VkImageMemoryBarrier barrier = {};
+		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		barrier.srcAccessMask = 0;
+		barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.image = m_RenderData.SwapchainImages[m_CurrentImageIndex];
+		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		barrier.subresourceRange.baseMipLevel = 0;
+		barrier.subresourceRange.levelCount = 1;
+		barrier.subresourceRange.baseArrayLayer = 0;
+		barrier.subresourceRange.layerCount = 1;
+
+		vkCmdPipelineBarrier(
+			m_CurrentCommandBuffer,
+			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+			0,
+			0, nullptr,
+			0, nullptr,
+			1, &barrier
+		);
+
 		std::array<VkClearValue, 2> clearValues = {};
 		clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
 		clearValues[1].depthStencil = { 1.0f, 0 };
 
-		VkRenderPassBeginInfo rpInfo = {};
-		rpInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		rpInfo.renderPass = m_RenderData.RenderPass;
-		rpInfo.framebuffer = m_RenderData.Framebuffers[m_CurrentImageIndex];
-		rpInfo.renderArea.offset = { 0, 0 };
-		rpInfo.renderArea.extent = m_CoreData.Swapchain.extent;
-		rpInfo.clearValueCount = static_cast<u32>(clearValues.size());
-		rpInfo.pClearValues = clearValues.data();
+		VkRenderingAttachmentInfoKHR colorAttachmentInfo = {};
+		colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+		colorAttachmentInfo.clearValue = clearValues[0];
+		colorAttachmentInfo.imageView = m_RenderData.SwapchainImageViews[m_CurrentImageIndex];
+		colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
-		vkCmdBeginRenderPass(m_CurrentCommandBuffer, &rpInfo, VK_SUBPASS_CONTENTS_INLINE);
+		VkRenderingAttachmentInfoKHR depthAttachmentInfo = {};
+		depthAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+		depthAttachmentInfo.clearValue = clearValues[1];
+		depthAttachmentInfo.imageView = m_DepthImage.View;
+		depthAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		depthAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		depthAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+		VkRenderingInfoKHR renderingInfo = {};
+		renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
+		renderingInfo.renderArea = { {0, 0}, {m_CoreData.Swapchain.extent.width, m_CoreData.Swapchain.extent.height} };
+		renderingInfo.pColorAttachments = &colorAttachmentInfo;
+		renderingInfo.colorAttachmentCount = 1;
+		renderingInfo.pDepthAttachment = &depthAttachmentInfo;
+		renderingInfo.pStencilAttachment = &depthAttachmentInfo;
+		renderingInfo.layerCount = 1;
+
+		vkCmdBeginRendering(m_CurrentCommandBuffer, &renderingInfo);
 
 		VkViewport viewport = {};
 		viewport.x = 0.0f;
@@ -1231,7 +1176,32 @@ namespace Core
 			return;
 		}
 
-		vkCmdEndRenderPass(m_CurrentCommandBuffer);
+		vkCmdEndRendering(m_CurrentCommandBuffer);
+
+		VkImageMemoryBarrier barrier = {};
+		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		barrier.dstAccessMask = 0;
+		barrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.image = m_RenderData.SwapchainImages[m_CurrentImageIndex];
+		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		barrier.subresourceRange.baseMipLevel = 0;
+		barrier.subresourceRange.levelCount = 1;
+		barrier.subresourceRange.baseArrayLayer = 0;
+		barrier.subresourceRange.layerCount = 1;
+
+		vkCmdPipelineBarrier(
+			m_CurrentCommandBuffer,
+			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+			VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+			0,
+			0, nullptr,
+			0, nullptr,
+			1, &barrier
+		);
 	}
 
 	MeshBuffers Renderer::CreateMeshBuffers(const std::vector<objl::Vertex>& vertices, const std::vector<u32>& indices)
@@ -1361,6 +1331,13 @@ namespace Core
 					sourceStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 					destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 				}
+				else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+				{
+					barrier.srcAccessMask = 0;
+					barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+					sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+					destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+				}
 				else
 				{
 					LOG_CRITICAL("Unsupported layout transition!");
@@ -1403,18 +1380,10 @@ namespace Core
 		vkDestroyCommandPool(m_CoreData.Device, m_RenderData.CommandPool, nullptr);
 		vkDestroyCommandPool(m_CoreData.Device, m_ImmediateCommandPool, nullptr);
 
-		for (auto framebuffer : m_RenderData.Framebuffers)
-		{
-			vkDestroyFramebuffer(m_CoreData.Device, framebuffer, nullptr);
-		}
-		vkDestroyFramebuffer(m_CoreData.Device, m_RenderTextureFramebuffer, nullptr);
-
 		m_GraphicsShader.Destroy(m_CoreData.Device);
 		m_WireframeShader.Destroy(m_CoreData.Device);
 		m_BlitShader.Destroy(m_CoreData.Device);
 
-		vkDestroyRenderPass(m_CoreData.Device, m_RenderData.RenderPass, nullptr);
-		vkDestroyRenderPass(m_CoreData.Device, m_RenderTextureRenderPass, nullptr);
 
 		for (auto imageView : m_RenderData.SwapchainImageViews)
 		{
@@ -1442,5 +1411,29 @@ namespace Core
 		vkDestroySurfaceKHR(m_CoreData.Instance, m_CoreData.Surface, nullptr);
 		vkb::destroy_device(m_CoreData.Device);
 		vkb::destroy_instance(m_CoreData.Instance);
+	}
+
+	VkPipelineRenderingCreateInfoKHR Renderer::GetGraphicsRenderingInfo() const
+	{
+		VkPipelineRenderingCreateInfoKHR pipelineRenderingInfo = {};
+		pipelineRenderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
+		pipelineRenderingInfo.colorAttachmentCount = 1;
+		pipelineRenderingInfo.pColorAttachmentFormats = &m_CoreData.Swapchain.image_format;
+		pipelineRenderingInfo.depthAttachmentFormat = m_DepthImageMSAA.Format;
+		pipelineRenderingInfo.stencilAttachmentFormat = m_DepthImageMSAA.Format;
+
+		return pipelineRenderingInfo;
+	}
+
+	VkPipelineRenderingCreateInfoKHR Renderer::GetSwapchainRenderingInfo() const
+	{
+		VkPipelineRenderingCreateInfoKHR swapchainRenderingInfo = {};
+		swapchainRenderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
+		swapchainRenderingInfo.colorAttachmentCount = 1;
+		swapchainRenderingInfo.pColorAttachmentFormats = &m_CoreData.Swapchain.image_format;
+		swapchainRenderingInfo.depthAttachmentFormat = m_DepthImage.Format;
+		swapchainRenderingInfo.stencilAttachmentFormat = m_DepthImage.Format;
+
+		return swapchainRenderingInfo;
 	}
 }
