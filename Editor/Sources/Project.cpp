@@ -1,5 +1,15 @@
 #include "Project.h"
 
+namespace
+{
+	// note: this function will return false if the paths match (https://stackoverflow.com/questions/62503197/check-if-path-contains-another-in-c)
+	bool IsSubpath(const std::filesystem::path& path, const std::filesystem::path& base)
+	{
+		auto rel = std::filesystem::relative(path, base);
+		return !rel.empty() && rel.native()[0] != '.';
+	}
+}
+
 
 Project* Project::Load(const std::filesystem::path& path)
 {
@@ -59,6 +69,13 @@ void Project::Save(const std::vector<std::unique_ptr<Core::Object>>& objects, Co
 		for (const auto& asset : assets)
 		{
 			assetPath = assetManager->GetAssetPathByID(asset->GetID()).string();
+
+			// save relative paths if the asset is inside the project directory
+			if (IsSubpath(assetPath, m_Path))
+			{
+				assetPath = std::filesystem::relative(assetPath, m_Path).string();
+			}
+
 			assetPathLength = static_cast<u32>(assetPath.size());
 			contentFile.write(reinterpret_cast<char*>(&assetPathLength), sizeof(u32));
 			contentFile.write(assetPath.c_str(), assetPathLength);

@@ -17,6 +17,13 @@ namespace
 		if (std::abs(vector.y) < 0.02f) vector.y = 0.f;
 		if (std::abs(vector.z) < 0.02f) vector.z = 0.f;
 	}
+
+	// note: this function will return false if the paths match (https://stackoverflow.com/questions/62503197/check-if-path-contains-another-in-c)
+	bool IsSubpath(const std::filesystem::path& path, const std::filesystem::path& base)
+	{
+		auto rel = std::filesystem::relative(path, base);
+		return !rel.empty() && rel.native()[0] != '.';
+	}
 }
 
 Editor::Editor():
@@ -1317,6 +1324,7 @@ bool Editor::RayTriangleIntersection(const Core::Ray& ray, const glm::vec3& v0, 
 	return false;
 }
 
+// .Content file format specification in Project.cpp
 void Editor::LoadProjectContent()
 {
 	std::fstream contentFile(m_CurrentProject->GetPath() / ".Content", std::ios::in | std::ios::binary);
@@ -1329,6 +1337,8 @@ void Editor::LoadProjectContent()
 	u32 nameLength = 0, assetCount = 0, assetPathLength = 0;
 	std::string assetExtension;
 	Core::Transform transform;
+
+	std::filesystem::path rootPath = std::filesystem::path(PATH_TO_EDITOR).parent_path();
 
 	for (u32 i = 0; i < objectCount; i++)
 	{
@@ -1356,12 +1366,19 @@ void Editor::LoadProjectContent()
 			std::string assetPath(assetPathLength, '\0');
 			contentFile.read(reinterpret_cast<char*>(&assetPath[0]), assetPathLength);
 
-			assetExtension = std::filesystem::path(assetPath).extension().string();
+			std::filesystem::path stdPath(assetPath);
+
+			if (!IsSubpath(stdPath, rootPath))
+			{
+				stdPath = m_CurrentProject->GetPath() / stdPath;
+			}
+
+			assetExtension = stdPath.extension().string();
 
 			if(assetExtension == ".obj")
-				newObject->AddComponent<Core::Mesh>(m_AssetManager->Load<Core::Mesh>(assetPath)->GetID());
+				newObject->AddComponent<Core::Mesh>(m_AssetManager->Load<Core::Mesh>(stdPath)->GetID());
 			else if (assetExtension == ".mtl")
-				newObject->AddComponent<Core::Material>(m_AssetManager->Load<Core::Material>(assetPath)->GetID());
+				newObject->AddComponent<Core::Material>(m_AssetManager->Load<Core::Material>(stdPath)->GetID());
 		}
 
 		m_Objects.push_back(std::unique_ptr<Core::Object>(newObject));
