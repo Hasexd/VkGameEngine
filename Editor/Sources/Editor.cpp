@@ -1363,22 +1363,22 @@ void Editor::LoadProjectContent()
 		for (u32 j = 0; j < assetCount; j++)
 		{
 			contentFile.read(reinterpret_cast<char*>(&assetPathLength), sizeof(u32));
-			std::string assetPath(assetPathLength, '\0');
-			contentFile.read(reinterpret_cast<char*>(&assetPath[0]), assetPathLength);
+			std::string assetPathStr(assetPathLength, '\0');
+			contentFile.read(reinterpret_cast<char*>(&assetPathStr[0]), assetPathLength);
 
-			std::filesystem::path stdPath(assetPath);
+			std::filesystem::path assetPath(assetPathStr);
 
-			if (!IsSubpath(stdPath, rootPath))
+			if (!IsSubpath(assetPath, rootPath))
 			{
-				stdPath = m_CurrentProject->GetPath() / stdPath;
+				assetPath = m_CurrentProject->GetPath() / assetPath;
 			}
 
-			assetExtension = stdPath.extension().string();
+			assetExtension = assetPath.extension().string();
 
 			if(assetExtension == ".obj")
-				newObject->AddComponent<Core::Mesh>(m_AssetManager->Load<Core::Mesh>(stdPath)->GetID());
+				newObject->AddComponent<Core::Mesh>(m_AssetManager->Load<Core::Mesh>(assetPath)->GetID());
 			else if (assetExtension == ".mtl")
-				newObject->AddComponent<Core::Material>(m_AssetManager->Load<Core::Material>(stdPath)->GetID());
+				newObject->AddComponent<Core::Material>(m_AssetManager->Load<Core::Material>(assetPath)->GetID());
 		}
 
 		m_Objects.push_back(std::unique_ptr<Core::Object>(newObject));
