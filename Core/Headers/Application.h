@@ -70,6 +70,11 @@ namespace Core
 		[[nodiscard]] VkSampleCountFlagBits GetMSAASamples() const { return m_Renderer->GetMSAASamples(); }
 		[[nodiscard]] VkPhysicalDeviceLimits GetPhysicalDeviceLimits() const { return m_Renderer->GetPhysicalDeviceLimits(); }
 
+		[[nodiscard]] Image CreateImage(u32 width, u32 height, VkFormat format, VkImageTiling tiling, VkImageAspectFlags aspects,
+			VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, VkSampleCountFlagBits samples) {
+			return m_Renderer->CreateImage(width, height, format, tiling, aspects, usage, memoryUsage, samples);
+		};
+
 		[[nodiscard]] Shader CreateShader(VkPipelineRenderingCreateInfoKHR* renderingInfo, const std::vector<DescriptorBinding>& bindings,
 			const std::vector<VkPushConstantRange>& pushConstantRanges,
 			VkVertexInputBindingDescription* vtxInputBindingDesc,
@@ -92,15 +97,18 @@ namespace Core
 
 		[[nodiscard]] const f32 GetGPUTime(const TimestampType& type) const { return m_Renderer->GetGPUTime(type); }
 
-		[[nodiscard]] VkPipelineRenderingCreateInfoKHR GetGraphicsRenderingInfo() const { return m_Renderer->GetGraphicsRenderingInfo(); };
-		[[nodiscard]] VkPipelineRenderingCreateInfoKHR GetSwapchainRenderingInfo() const { return m_Renderer->GetSwapchainRenderingInfo(); };
+		[[nodiscard]] VkPipelineRenderingCreateInfoKHR GetGraphicsRenderingInfo() const { return m_Renderer->GetGraphicsRenderingInfo(); }
+		[[nodiscard]] VkPipelineRenderingCreateInfoKHR GetSwapchainRenderingInfo() const { return m_Renderer->GetSwapchainRenderingInfo(); }
 
 		void UpdateDescriptorSets(const Shader& shader) { m_Renderer->UpdateDescriptorSets(shader); }
 
-		Buffer CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage) { return m_Renderer->CreateBuffer(size, usage, memoryUsage); };
-		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) { m_Renderer->CopyBuffer(srcBuffer, dstBuffer, size); };
+		Buffer CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage) { return m_Renderer->CreateBuffer(size, usage, memoryUsage); }
+		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) { m_Renderer->CopyBuffer(srcBuffer, dstBuffer, size); }
+		void CopyBufferToImage(VkBuffer buffer, VkImage image, u32 width, u32 height) { m_Renderer->CopyBufferToImage(buffer, image, width, height); }
 
-		static void SetWindowTitle(const std::string& title) { s_Instance->SetWindowTitle(title); };
+		void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) { m_Renderer->TransitionImageLayout(image, format, oldLayout, newLayout); }
+
+		static void SetWindowTitle(const std::string& title) { s_Instance->SetWindowTitle(title); }
 
 	private:
 		static inline Application* s_Instance = nullptr;

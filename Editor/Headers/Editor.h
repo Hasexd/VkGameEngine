@@ -30,6 +30,7 @@
 #include "Gizmo.h"
 #include "AssetManager.h"
 #include "Project.h"
+#include "Texture.h"
 
 
 class Editor : public Core::Layer
@@ -114,6 +115,7 @@ private:
 	VkDescriptorPool m_ImGuiDescriptorPool;
 
 	std::filesystem::path m_ShaderDirectory = std::filesystem::path(PATH_TO_SHADERS);
+	std::filesystem::path m_IconsDirectory = std::filesystem::path(PATH_TO_ICONS);
 
 	Core::Shader m_OutlineShader;
 	Core::Shader m_OutlineFillShader;
@@ -130,6 +132,9 @@ private:
 	bool m_WireframeMode = false;
 
 	std::unique_ptr<Project> m_CurrentProject = nullptr;
+	std::filesystem::path m_CurrentProjectContentPath = "";
+
+	Core::Texture* m_DirectoryIcon;
 };
 
 template<std::derived_from<Core::Object> T, typename... Args>

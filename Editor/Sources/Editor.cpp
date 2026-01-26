@@ -49,13 +49,11 @@ Editor::Editor():
 	CreateDebugLinePipeline();
 	CreateGizmoPipeline();
 
-	// uncomment for porsche
-	/*auto porsche = AddObject<Core::Object>("Porsche 911");
-	porsche->GetComponent<Core::Transform>()->Position = { 5.0f, 2.0f, 10.0f };
-	porsche->AddComponent<Core::Mesh>(m_AssetManager->Load<Core::Mesh>(std::filesystem::path(PATH_TO_OBJS) / "Porsche_911_GT2.obj")->GetID());*/
-
 	glm::vec2 framebufferSize = app.GetWindow().GetFramebufferSize();
 	m_Camera.AspectRatio = static_cast<f32>(framebufferSize.x) / static_cast<f32>(framebufferSize.y);
+
+	m_DirectoryIcon = m_AssetManager->Load<Core::Texture>(m_IconsDirectory / "Directory.png");
+	m_DirectoryIcon->SetDescriptorSet(ImGui_ImplVulkan_AddTexture(m_DirectoryIcon->GetSampler(), m_DirectoryIcon->GetImage().View, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
 
 	auto openExistingProject = pfd::message("Opening an existing project", "Do you want to open an existing project?", pfd::choice::yes_no, pfd::icon::question);
 
@@ -66,6 +64,7 @@ Editor::Editor():
 		{
 			std::filesystem::path projectPath = projectFileDialog.result()[0];
 			m_CurrentProject.reset(std::move(Project::Load(projectPath)));
+			m_CurrentProjectContentPath = projectPath.parent_path() / "Content";
 
 			LoadProjectContent();
 
@@ -1131,6 +1130,18 @@ void Editor::RenderImGui()
 	ImGui::SetNextWindowBgAlpha(1.0f);
 	ImGui::Begin("Assets");
 
+	if (!m_CurrentProjectContentPath.empty())
+	{
+		for (const auto& entry : std::filesystem::recursive_directory_iterator(m_CurrentProjectContentPath))
+		{
+			if (entry.is_directory())
+			{
+				std::string name = entry.path().filename().string();
+				ImGui::ImageButton(name.c_str(), m_DirectoryIcon->GetDescriptorSet(), {50, 50});
+			}
+		}
+	}
+
 	ImGui::End();
 
 	ImGui::Begin("Render Times");
@@ -1379,6 +1390,8 @@ void Editor::LoadProjectContent()
 				newObject->AddComponent<Core::Mesh>(m_AssetManager->Load<Core::Mesh>(assetPath)->GetID());
 			else if (assetExtension == ".mtl")
 				newObject->AddComponent<Core::Material>(m_AssetManager->Load<Core::Material>(assetPath)->GetID());
+			else if (assetExtension == ".png" || assetExtension == ".jpg" || assetExtension == ".jpeg")
+				newObject->AddComponent<Core::Texture>(m_AssetManager->Load<Core::Texture>(assetPath)->GetID());
 		}
 
 		m_Objects.push_back(std::unique_ptr<Core::Object>(newObject));

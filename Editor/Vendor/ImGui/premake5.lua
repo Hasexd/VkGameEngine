@@ -16,7 +16,7 @@ project "ImGui"
     includedirs
     {
         "./",
-        "../../../Core/Vendor/glfw/include",
+        rootPath .. "/Core/Vendor/glfw/include",
         vkSDK .. "/Include"
     }
     

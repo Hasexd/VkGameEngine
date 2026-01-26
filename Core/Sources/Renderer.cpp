@@ -515,6 +515,26 @@ namespace Core
 			});
 	}
 
+	void Renderer::CopyBufferToImage(VkBuffer buffer, VkImage image, u32 width, u32 height)
+	{
+		ImmediateSubmit([&](VkCommandBuffer cmd)
+			{
+				VkBufferImageCopy region = {};
+				region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				region.imageSubresource.layerCount = 1;
+				region.imageExtent = { width, height, 1 };
+
+				vkCmdCopyBufferToImage(
+					cmd,
+					buffer,
+					image,
+					VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+					1,
+					&region
+				);
+			});
+	}
+
 	Image Renderer::CreateImage(u32 width, u32 height, VkFormat format, VkImageTiling tiling,
 		VkImageAspectFlags aspects, VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, VkSampleCountFlagBits samples)
 	{

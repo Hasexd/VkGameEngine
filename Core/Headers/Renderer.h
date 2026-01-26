@@ -109,6 +109,12 @@ namespace Core
 		Buffer CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
+		void CopyBufferToImage(VkBuffer buffer, VkImage image, u32 width, u32 height);
+
+		Image CreateImage(u32 width, u32 height, VkFormat format, VkImageTiling tiling, VkImageAspectFlags aspects,
+			VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, VkSampleCountFlagBits samples);
+
+		void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 	private:
 		void InitCoreData();
 		void SetPhysDevicePropertiesAndLimits();
@@ -126,11 +132,6 @@ namespace Core
 		void RecreateSwapchain();
 
 		void ImmediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
-
-		Image CreateImage(u32 width, u32 height, VkFormat format, VkImageTiling tiling, VkImageAspectFlags aspects,
-			VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, VkSampleCountFlagBits samples);
-
-		void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 	private:
 		GLFWwindow* m_Window;
 
