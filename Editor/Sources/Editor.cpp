@@ -63,9 +63,8 @@ Editor::Editor():
 		if (!projectFileDialog.result().empty())
 		{
 			std::filesystem::path projectPath = projectFileDialog.result()[0];
-			m_CurrentProject.reset(std::move(Project::Load(projectPath)));
+			m_CurrentProject.reset(Project::Load(projectPath));
 			m_CurrentProjectContentPath = projectPath.parent_path() / "Content";
-
 			LoadProjectContent();
 
 			LOG_INFO("Loaded project: {}", projectPath.string());
