@@ -4,6 +4,7 @@ project "VkBootstrap"
     cppdialect "C++23"
     staticruntime "on"
 
+    buildoptions { "-std=c++23" }
     targetdir ("../../../bin/" .. outputdir .. "/%{prj.name}")
     objdir ("../../../bin-int/" .. outputdir .. "/%{prj.name}")
 

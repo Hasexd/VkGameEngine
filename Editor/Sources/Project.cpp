@@ -70,11 +70,16 @@ void Project::Save(const std::vector<std::unique_ptr<Core::Object>>& objects, Co
 		{
 			assetPath = assetManager->GetAssetPathByID(asset->GetID()).string();
 
-			// save relative paths if the asset is inside the project directory
 			if (IsSubpath(assetPath, m_Path))
 			{
 				assetPath = std::filesystem::relative(assetPath, m_Path).string();
 			}
+			else if (IsSubpath(assetPath, s_RootPath))
+			{
+				assetPath = std::filesystem::relative(assetPath, s_RootPath).string();
+			}
+
+			std::println("Asset path: {}", assetPath);
 
 			assetPathLength = static_cast<u32>(assetPath.size());
 			contentFile.write(reinterpret_cast<char*>(&assetPathLength), sizeof(u32));

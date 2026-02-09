@@ -4,6 +4,7 @@ project "Core"
     cppdialect "C++23"
     staticruntime "on"
 
+    buildoptions { "-std=c++23" }
     targetdir("../bin/" .. outputdir .. "/%{prj.name}")
     objdir("../bin-int/" .. outputdir .. "/%{prj.name}")
 
@@ -43,7 +44,8 @@ project "Core"
     }
 
     filter "system:windows"
-        links { vkSDK .. "/Lib/vulkan-1.lib" }
+        libdirs { vkSDK .. "/Lib" }
+        links { "vulkan-1" }
         prebuildcommands {
             "cd %{prj.location} && call Scripts/compile_shaders.bat"
         }

@@ -38,6 +38,7 @@ project "GLFW"
             "src/osmesa_context.c",
             "src/win32_module.c",
         }
+        links { "gdi32" }
         defines { "_GLFW_WIN32" }
     
     filter "system:linux"

@@ -1,4 +1,4 @@
-#pragma once;
+#pragma once
 
 #include <string>
 #include <filesystem>
@@ -23,4 +23,5 @@ public:
 private:
 	std::string m_Name;
 	std::filesystem::path m_Path;
+	static inline std::filesystem::path s_RootPath = std::filesystem::path(PATH_TO_EDITOR).parent_path();
 };

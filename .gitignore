@@ -6,3 +6,6 @@
 *.sln
 .idea/
 Makefile
+.cache/
+compile_commands/
+compile_commands.json

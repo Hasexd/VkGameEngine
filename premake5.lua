@@ -1,3 +1,5 @@
+require "Premake/export-compile-commands"
+
 workspace "VkGameEngine"
     architecture "x64"
     configurations {"Debug", "Release"}

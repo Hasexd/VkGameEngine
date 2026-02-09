@@ -6,6 +6,7 @@
 #include <numeric>
 #include <concepts>
 
+#include <functional> // for portable dialogs
 //required to include before glfw
 #include "PortableFileDialogs.h"
 

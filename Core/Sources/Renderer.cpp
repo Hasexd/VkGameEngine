@@ -831,7 +831,7 @@ namespace Core
 
 
 		vkFreeCommandBuffers(m_CoreData.Device, m_RenderData.CommandPool,
-			static_cast<uint32_t>(m_RenderData.CommandBuffers.size()),
+			static_cast<u32>(m_RenderData.CommandBuffers.size()),
 			m_RenderData.CommandBuffers.data());
 		m_RenderData.CommandBuffers.clear();
 
@@ -845,9 +845,7 @@ namespace Core
 		CreateRenderTextures();
 		CreateCommandPool();
 		CreateCommandBuffers();
-
-		// update shader bindings
-
+	
 		m_BlitShader.Bindings = 
 		{
 			DescriptorBinding(m_RenderTextureResolved, m_RenderTextureSampler,

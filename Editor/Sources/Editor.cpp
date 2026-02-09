@@ -1378,7 +1378,12 @@ void Editor::LoadProjectContent()
 
 			std::filesystem::path assetPath(assetPathStr);
 
-			if (!IsSubpath(assetPath, rootPath))
+			// first check if asset is part of core assets
+			if (std::filesystem::exists(rootPath / assetPath))
+			{
+				assetPath = rootPath / assetPath;
+			}
+			else 
 			{
 				assetPath = m_CurrentProject->GetPath() / assetPath;
 			}
