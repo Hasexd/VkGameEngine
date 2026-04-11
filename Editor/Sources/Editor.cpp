@@ -1,4 +1,7 @@
 #include "Editor.h"
+#include "imgui.h"
+#include <algorithm>
+#include <filesystem>
 
 
 namespace
@@ -23,6 +26,22 @@ namespace
 	{
 		auto rel = std::filesystem::relative(path, base);
 		return !rel.empty() && rel.native()[0] != '.';
+	}
+
+	ImVec2 FitImageSize(f32 texWidth, f32 texHeight, f32 maxWidth, f32 maxHeight)
+	{
+		f32 aspectRatio = texWidth / texHeight;
+		
+		f32 width = maxHeight * aspectRatio;
+		f32 height = maxHeight;
+
+		if (width > maxWidth)
+		{
+			width = maxWidth;
+			height = maxHeight / aspectRatio;
+		}
+
+		return { width, height };
 	}
 }
 
@@ -101,18 +120,25 @@ Editor::~Editor()
 
 void Editor::InitGizmos()
 {
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, m_AssetManager.get(), GizmoType::Translate, GizmoAxis::X));
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, m_AssetManager.get(), GizmoType::Translate, GizmoAxis::Y));
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, m_AssetManager.get(), GizmoType::Translate, GizmoAxis::Z));
+	GizmoAxis currentAxes = GizmoAxis::X;
+	GizmoType currentType = GizmoType::Translate;
 
-	
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, m_AssetManager.get(), GizmoType::Rotate, GizmoAxis::X));
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, m_AssetManager.get(), GizmoType::Rotate, GizmoAxis::Y));
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, m_AssetManager.get(), GizmoType::Rotate, GizmoAxis::Z));
+	for (u32 i = 0; i < 9; i++)
+	{
+		if (i == 3)
+			currentType = GizmoType::Rotate;
+		else if (i == 6)
+			currentType = GizmoType::Scale;
 
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, m_AssetManager.get(), GizmoType::Scale, GizmoAxis::X));
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, m_AssetManager.get(), GizmoType::Scale, GizmoAxis::Y));
-	m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, m_AssetManager.get(), GizmoType::Scale, GizmoAxis::Z));
+		if (i != 0 && currentAxes == GizmoAxis::X)
+			currentAxes = GizmoAxis::Y;
+		else if (i != 0 && currentAxes == GizmoAxis::Y)
+			currentAxes = GizmoAxis::Z;
+		else if (i != 0 && currentAxes == GizmoAxis::Z)
+			currentAxes = GizmoAxis::X;
+
+		m_Gizmos.emplace_back(std::make_unique<Gizmo>(m_ECS, m_AssetManager.get(), currentType, currentAxes));
+	}
 }
 
 void Editor::OnEvent(Core::Event& event)
@@ -1055,10 +1081,91 @@ void Editor::InitImGui()
 
 	ImGui::LoadIniSettingsFromDisk(pathStr.c_str());
 
-	ImGui::StyleColorsDark();
+	// color theme taken from https://github.com/ocornut/imgui/issues/707
+	ImVec4* colors = ImGui::GetStyle().Colors;
+  	colors[ImGuiCol_Text]                   = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+  	colors[ImGuiCol_TextDisabled]           = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+  	colors[ImGuiCol_WindowBg]               = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
+  	colors[ImGuiCol_ChildBg]                = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+  	colors[ImGuiCol_PopupBg]                = ImVec4(0.19f, 0.19f, 0.19f, 0.92f);
+  	colors[ImGuiCol_Border]                 = ImVec4(0.19f, 0.19f, 0.19f, 0.29f);
+  	colors[ImGuiCol_BorderShadow]           = ImVec4(0.00f, 0.00f, 0.00f, 0.24f);
+  	colors[ImGuiCol_FrameBg]                = ImVec4(0.05f, 0.05f, 0.05f, 0.54f);
+  	colors[ImGuiCol_FrameBgHovered]         = ImVec4(0.19f, 0.19f, 0.19f, 0.54f);
+  	colors[ImGuiCol_FrameBgActive]          = ImVec4(0.20f, 0.22f, 0.23f, 1.00f);
+  	colors[ImGuiCol_TitleBg]                = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
+  	colors[ImGuiCol_TitleBgActive]          = ImVec4(0.06f, 0.06f, 0.06f, 1.00f);
+  	colors[ImGuiCol_TitleBgCollapsed]       = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
+  	colors[ImGuiCol_MenuBarBg]              = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
+  	colors[ImGuiCol_ScrollbarBg]            = ImVec4(0.05f, 0.05f, 0.05f, 0.54f);
+  	colors[ImGuiCol_ScrollbarGrab]          = ImVec4(0.34f, 0.34f, 0.34f, 0.54f);
+  	colors[ImGuiCol_ScrollbarGrabHovered]   = ImVec4(0.40f, 0.40f, 0.40f, 0.54f);
+  	colors[ImGuiCol_ScrollbarGrabActive]    = ImVec4(0.56f, 0.56f, 0.56f, 0.54f);
+  	colors[ImGuiCol_CheckMark]              = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
+  	colors[ImGuiCol_SliderGrab]             = ImVec4(0.34f, 0.34f, 0.34f, 0.54f);
+  	colors[ImGuiCol_SliderGrabActive]       = ImVec4(0.56f, 0.56f, 0.56f, 0.54f);
+  	colors[ImGuiCol_Button]                 = ImVec4(0.05f, 0.05f, 0.05f, 0.54f);
+  	colors[ImGuiCol_ButtonHovered]          = ImVec4(0.19f, 0.19f, 0.19f, 0.54f);
+  	colors[ImGuiCol_ButtonActive]           = ImVec4(0.20f, 0.22f, 0.23f, 1.00f);
+  	colors[ImGuiCol_Header]                 = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
+  	colors[ImGuiCol_HeaderHovered]          = ImVec4(0.00f, 0.00f, 0.00f, 0.36f);
+  	colors[ImGuiCol_HeaderActive]           = ImVec4(0.20f, 0.22f, 0.23f, 0.33f);
+  	colors[ImGuiCol_Separator]              = ImVec4(0.28f, 0.28f, 0.28f, 0.29f);
+  	colors[ImGuiCol_SeparatorHovered]       = ImVec4(0.44f, 0.44f, 0.44f, 0.29f);
+  	colors[ImGuiCol_SeparatorActive]        = ImVec4(0.40f, 0.44f, 0.47f, 1.00f);
+  	colors[ImGuiCol_ResizeGrip]             = ImVec4(0.28f, 0.28f, 0.28f, 0.29f);
+  	colors[ImGuiCol_ResizeGripHovered]      = ImVec4(0.44f, 0.44f, 0.44f, 0.29f);
+  	colors[ImGuiCol_ResizeGripActive]       = ImVec4(0.40f, 0.44f, 0.47f, 1.00f);
+  	colors[ImGuiCol_Tab]                    = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
+  	colors[ImGuiCol_TabHovered]             = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
+  	colors[ImGuiCol_TabActive]              = ImVec4(0.20f, 0.20f, 0.20f, 0.36f);
+  	colors[ImGuiCol_TabUnfocused]           = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
+  	colors[ImGuiCol_TabUnfocusedActive]     = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
+  	colors[ImGuiCol_DockingPreview]         = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
+  	colors[ImGuiCol_DockingEmptyBg]         = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
+  	colors[ImGuiCol_PlotLines]              = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
+  	colors[ImGuiCol_PlotLinesHovered]       = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
+  	colors[ImGuiCol_PlotHistogram]          = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
+  	colors[ImGuiCol_PlotHistogramHovered]   = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
+  	colors[ImGuiCol_TableHeaderBg]          = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
+  	colors[ImGuiCol_TableBorderStrong]      = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
+  	colors[ImGuiCol_TableBorderLight]       = ImVec4(0.28f, 0.28f, 0.28f, 0.29f);
+  	colors[ImGuiCol_TableRowBg]             = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+  	colors[ImGuiCol_TableRowBgAlt]          = ImVec4(1.00f, 1.00f, 1.00f, 0.06f);
+  	colors[ImGuiCol_TextSelectedBg]         = ImVec4(0.20f, 0.22f, 0.23f, 1.00f);
+  	colors[ImGuiCol_DragDropTarget]         = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
+  	colors[ImGuiCol_NavHighlight]           = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
+  	colors[ImGuiCol_NavWindowingHighlight]  = ImVec4(1.00f, 0.00f, 0.00f, 0.70f);
+  	colors[ImGuiCol_NavWindowingDimBg]      = ImVec4(1.00f, 0.00f, 0.00f, 0.20f);
+  	colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(1.00f, 0.00f, 0.00f, 0.35f);
+
+  	ImGuiStyle& style = ImGui::GetStyle();
+  	style.WindowPadding                     = ImVec2(8.00f, 8.00f);
+  	style.FramePadding                      = ImVec2(5.00f, 2.00f);
+  	style.CellPadding                       = ImVec2(6.00f, 6.00f);
+  	style.ItemSpacing                       = ImVec2(6.00f, 6.00f);
+  	style.ItemInnerSpacing                  = ImVec2(6.00f, 6.00f);
+  	style.TouchExtraPadding                 = ImVec2(0.00f, 0.00f);
+  	style.IndentSpacing                     = 25;
+  	style.ScrollbarSize                     = 15;
+  	style.GrabMinSize                       = 10;
+  	style.WindowBorderSize                  = 1;
+  	style.ChildBorderSize                   = 1;
+  	style.PopupBorderSize                   = 1;
+  	style.FrameBorderSize                   = 1;
+  	style.TabBorderSize                     = 1;
+  	style.WindowRounding                    = 7;
+  	style.ChildRounding                     = 4;
+  	style.FrameRounding                     = 3;
+  	style.PopupRounding                     = 4;
+  	style.ScrollbarRounding                 = 9;
+  	style.GrabRounding                      = 3;
+  	style.LogSliderDeadzone                 = 4;
+  	style.TabRounding                       = 4;
+
+
 
 	float mainScale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor());
-	ImGuiStyle& style = ImGui::GetStyle();
 	style.ScaleAllSizes(mainScale);
 	style.FontScaleDpi = mainScale;
 	io.ConfigDpiScaleFonts = true;
@@ -1129,14 +1236,91 @@ void Editor::RenderImGui()
 	ImGui::SetNextWindowBgAlpha(1.0f);
 	ImGui::Begin("Assets");
 
+	ImGuiTabBarFlags tabBarFlags = ImGuiTabBarFlags_AutoSelectNewTabs | ImGuiTabBarFlags_Reorderable;
+
 	if (!m_CurrentProjectContentPath.empty())
 	{
+
+		std::filesystem::path relativePath = std::filesystem::relative(
+			m_CurrentProjectContentPath, m_CurrentProject->GetPath()		
+		);
+
+		std::vector<std::filesystem::path> paths;
+
+		for (const auto& part : relativePath)
+			paths.push_back(part);
+
+		for (usize i = 0; i < paths.size(); i++)
+		{
+			std::string partName = paths[i].string();
+
+			ImGui::PushID(static_cast<i32>(i));
+			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1, 1, 1, 0.1f));
+			ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1, 1, 1, 0.2f));
+
+			if (ImGui::Button(partName.c_str()))
+			{
+				std::filesystem::path targetPath = m_CurrentProject->GetPath() / "Content";
+
+				for (usize j = 1; j <= i; j++)
+					targetPath /= paths[j];
+
+				m_CurrentProjectContentPath = targetPath;
+			}
+
+			ImGui::PopStyleColor(3);
+			ImGui::PopID();
+
+			if (i < paths.size() - 1)
+			{
+				ImGui::SameLine();
+				ImGui::TextDisabled("/");
+				ImGui::SameLine();
+			}
+		}
+
+		ImGui::Separator();
+
+
+		auto dirIter = std::filesystem::directory_iterator(m_CurrentProjectContentPath);
+		u32 entryCount = std::ranges::count_if(std::filesystem::begin(dirIter), std::filesystem::end(dirIter),
+				[](auto& entry) { return true; });
+
 		for (const auto& entry : std::filesystem::recursive_directory_iterator(m_CurrentProjectContentPath))
 		{
 			if (entry.is_directory())
 			{
 				std::string name = entry.path().filename().string();
-				ImGui::ImageButton(name.c_str(), m_DirectoryIcon->GetDescriptorSet(), {50, 50});
+
+				ImVec2 windowSize = ImGui::GetWindowSize();
+				ImVec2 imageSize = FitImageSize(
+						m_DirectoryIcon->GetWidth(),
+						m_DirectoryIcon->GetHeight(), 
+						windowSize.x / entryCount,
+						50.0f);
+				
+				ImGui::BeginGroup();
+
+				ImGui::ImageButton(name.c_str(), m_DirectoryIcon->GetDescriptorSet(), imageSize);
+
+				if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+				{
+					LOG_INFO("Double clicked");
+					m_CurrentProjectContentPath /= entry.path().filename();
+				}
+
+				f32 textWidth = ImGui::CalcTextSize(name.c_str()).x;
+				f32 offset = (imageSize.x - textWidth) / 2.0f;
+
+				if (offset > 0.0)
+					ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offset);
+
+				ImGui::TextUnformatted(name.c_str());
+
+				ImGui::EndGroup();
+
+				ImGui::SameLine();
 			}
 		}
 	}
@@ -1403,3 +1587,4 @@ void Editor::LoadProjectContent()
 
 	contentFile.close();
 }
+
