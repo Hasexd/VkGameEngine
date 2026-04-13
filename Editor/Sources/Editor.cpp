@@ -1,5 +1,7 @@
 #include "Editor.h"
 #include "imgui.h"
+#include "imgui_impl_vulkan.h"
+#include "vulkan/vulkan_core.h"
 #include <algorithm>
 #include <filesystem>
 
@@ -73,6 +75,10 @@ Editor::Editor():
 
 	m_DirectoryIcon = m_AssetManager->Load<Core::Texture>(m_IconsDirectory / "Directory.png");
 	m_DirectoryIcon->SetDescriptorSet(ImGui_ImplVulkan_AddTexture(m_DirectoryIcon->GetSampler(), m_DirectoryIcon->GetImage().View, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
+
+
+	m_DefaultFileIcon = m_AssetManager->Load<Core::Texture>(m_IconsDirectory / "BasicFile.png");
+	m_DefaultFileIcon->SetDescriptorSet(ImGui_ImplVulkan_AddTexture(m_DefaultFileIcon->GetSampler(), m_DefaultFileIcon->GetImage().View, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
 
 	auto openExistingProject = pfd::message("Opening an existing project", "Do you want to open an existing project?", pfd::choice::yes_no, pfd::icon::question);
 
@@ -1240,7 +1246,6 @@ void Editor::RenderImGui()
 
 	if (!m_CurrentProjectContentPath.empty())
 	{
-
 		std::filesystem::path relativePath = std::filesystem::relative(
 			m_CurrentProjectContentPath, m_CurrentProject->GetPath()		
 		);
@@ -1287,40 +1292,24 @@ void Editor::RenderImGui()
 		u32 entryCount = std::ranges::count_if(std::filesystem::begin(dirIter), std::filesystem::end(dirIter),
 				[](auto& entry) { return true; });
 
-		for (const auto& entry : std::filesystem::recursive_directory_iterator(m_CurrentProjectContentPath))
+		for (const auto& entry : std::filesystem::directory_iterator(m_CurrentProjectContentPath))
 		{
+			if (!entry.exists() || !entry.is_directory() && !entry.is_regular_file())
+				continue;
+
+			std::string name = entry.path().filename().string();
 			if (entry.is_directory())
 			{
-				std::string name = entry.path().filename().string();
-
-				ImVec2 windowSize = ImGui::GetWindowSize();
-				ImVec2 imageSize = FitImageSize(
-						m_DirectoryIcon->GetWidth(),
-						m_DirectoryIcon->GetHeight(), 
-						windowSize.x / entryCount,
-						50.0f);
-				
-				ImGui::BeginGroup();
-
-				ImGui::ImageButton(name.c_str(), m_DirectoryIcon->GetDescriptorSet(), imageSize);
-
-				if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+				ShowFileIcon(m_DirectoryIcon, name, entryCount, [this, entry]()
 				{
-					LOG_INFO("Double clicked");
-					m_CurrentProjectContentPath /= entry.path().filename();
-				}
+					if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+						m_CurrentProjectContentPath /= entry.path().filename();
+				});	
+			}
 
-				f32 textWidth = ImGui::CalcTextSize(name.c_str()).x;
-				f32 offset = (imageSize.x - textWidth) / 2.0f;
-
-				if (offset > 0.0)
-					ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offset);
-
-				ImGui::TextUnformatted(name.c_str());
-
-				ImGui::EndGroup();
-
-				ImGui::SameLine();
+			if (entry.path().extension() == ".mtl")
+			{
+				ShowFileIcon(m_DefaultFileIcon, name, entryCount, [](){});
 			}
 		}
 	}
@@ -1339,6 +1328,40 @@ void Editor::RenderImGui()
 		ImGui::UpdatePlatformWindows();
 		ImGui::RenderPlatformWindowsDefault();
 	}
+}
+
+void Editor::ShowFileIcon(Core::Texture* icon, const std::string& name, u32 entryCount, const std::function<void()>& additionalFunctionality)
+{
+	if (!icon)
+	{
+		LOG_WARN("[ShowFileIcon] Icon is nullptr.");
+		return;
+	}
+
+	ImVec2 windowSize = ImGui::GetWindowSize();
+
+	ImVec2 imageSize = FitImageSize(
+		icon->GetWidth(),
+		icon->GetHeight(), 
+		windowSize.x / entryCount,
+		50.0f);
+				
+	ImGui::BeginGroup();
+
+	ImGui::ImageButton(name.c_str(), icon->GetDescriptorSet(), imageSize);
+
+	additionalFunctionality();
+
+	f32 textWidth = ImGui::CalcTextSize(name.c_str()).x;
+	f32 offset = (imageSize.x - textWidth) / 2.0f;
+
+	if (offset > 0.0)
+		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offset);
+
+	ImGui::TextUnformatted(name.c_str());
+
+	ImGui::EndGroup();
+	ImGui::SameLine();
 }
 
 void Editor::DrawDebugLine(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color, f32 lifetime, f32 thickness)

@@ -93,6 +93,8 @@ private:
 	void AxisScaleDragger(const glm::vec3& axis);
 
 	void LoadProjectContent();
+
+	void ShowFileIcon(Core::Texture* icon, const std::string& name, u32 entryCount, const std::function<void()>& additionalFunctionality);
 private:
 	std::unique_ptr<Core::AssetManager> m_AssetManager;
 	Core::ECS m_ECS;
@@ -136,6 +138,7 @@ private:
 	std::filesystem::path m_CurrentProjectContentPath = "";
 
 	Core::Texture* m_DirectoryIcon;
+	Core::Texture* m_DefaultFileIcon;
 };
 
 template<std::derived_from<Core::Object> T, typename... Args>
