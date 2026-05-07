@@ -94,6 +94,7 @@ private:
 
 	void LoadProjectContent();
 
+	void SetupFileIcons();
 	void ShowFileIcon(Core::Texture* icon, const std::string& name, u32 entryCount, const std::function<void()>& additionalFunctionality);
 private:
 	std::unique_ptr<Core::AssetManager> m_AssetManager;

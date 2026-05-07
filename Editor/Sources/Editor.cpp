@@ -70,15 +70,10 @@ Editor::Editor():
 	CreateDebugLinePipeline();
 	CreateGizmoPipeline();
 
+	SetupFileIcons();
+
 	glm::vec2 framebufferSize = app.GetWindow().GetFramebufferSize();
 	m_Camera.AspectRatio = static_cast<f32>(framebufferSize.x) / static_cast<f32>(framebufferSize.y);
-
-	m_DirectoryIcon = m_AssetManager->Load<Core::Texture>(m_IconsDirectory / "Directory.png");
-	m_DirectoryIcon->SetDescriptorSet(ImGui_ImplVulkan_AddTexture(m_DirectoryIcon->GetSampler(), m_DirectoryIcon->GetImage().View, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
-
-
-	m_DefaultFileIcon = m_AssetManager->Load<Core::Texture>(m_IconsDirectory / "BasicFile.png");
-	m_DefaultFileIcon->SetDescriptorSet(ImGui_ImplVulkan_AddTexture(m_DefaultFileIcon->GetSampler(), m_DefaultFileIcon->GetImage().View, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
 
 	auto openExistingProject = pfd::message("Opening an existing project", "Do you want to open an existing project?", pfd::choice::yes_no, pfd::icon::question);
 
@@ -122,6 +117,19 @@ Editor::~Editor()
 	m_DebugLines.clear();
 	m_Gizmos.clear();
 	m_AssetManager.reset();
+}
+
+void Editor::SetupFileIcons()
+{
+	m_DirectoryIcon = m_AssetManager->Load<Core::Texture>(m_IconsDirectory / "Directory.png");
+	m_DirectoryIcon->SetDescriptorSet(ImGui_ImplVulkan_AddTexture(m_DirectoryIcon->GetSampler(),
+				m_DirectoryIcon->GetImage().View,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
+
+	m_DefaultFileIcon = m_AssetManager->Load<Core::Texture>(m_IconsDirectory / "BasicFile.png");
+	m_DefaultFileIcon->SetDescriptorSet(ImGui_ImplVulkan_AddTexture(m_DefaultFileIcon->GetSampler(),
+				m_DefaultFileIcon->GetImage().View,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
 }
 
 void Editor::InitGizmos()
